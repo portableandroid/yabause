@@ -68,7 +68,7 @@
 #endif 
 #endif
 
-#ifdef GEKKO
+#if defined(GEKKO) && !defined(__LIBRETRO__)
 /* Wii have both stdint.h and "yabause" definitions of fixed
 size types */
 #include <gccore.h>

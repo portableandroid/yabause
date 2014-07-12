@@ -57,7 +57,7 @@
 #ifdef _arch_dreamcast
 #include <arch/timer.h>
 #endif
-#ifdef GEKKO
+#if defined(GEKKO) && !defined(__LIBRETRO__)
 #include <ogc/lwp_watchdog.h>
 #endif
 #ifdef PSP
