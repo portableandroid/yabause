@@ -12,6 +12,21 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
 endif
 endif
 
+# system platform
+system_platform = unix
+ifeq ($(shell uname -a),)
+EXE_EXT = .exe
+   system_platform = win
+else ifneq ($(findstring Darwin,$(shell uname -a)),)
+   system_platform = osx
+	arch = intel
+ifeq ($(shell uname -p),powerpc)
+	arch = ppc
+endif
+else ifneq ($(findstring MINGW,$(shell uname -a)),)
+   system_platform = win
+endif
+
 TARGET_NAME = yabause
 CC_AS ?= $(CC)
 
@@ -35,12 +50,33 @@ else ifeq ($(platform), ios)
    CC = clang -arch armv7 -isysroot $(IOSSDK)
    CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
    CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
+else ifeq ($(platform), ps3)
+   TARGET := $(TARGET_NAME)_libretro_ps3.a
+   CC = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-gcc.exe
+   CXX = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-g++.exe
+   AR = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-ar.exe
+   ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
+   STATIC_LINKING = 1
+else ifeq ($(platform), sncps3)
+   TARGET := $(TARGET_NAME)_libretro_ps3.a
+   CC = $(CELL_SDK)/host-win32/sn/bin/ps3ppusnc.exe
+   CXX = $(CELL_SDK)/host-win32/sn/bin/ps3ppusnc.exe
+   AR = $(CELL_SDK)/host-win32/sn/bin/ps3snarl.exe
+   ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
+   STATIC_LINKING = 1
+else ifeq ($(platform), psl1ght)
+   TARGET := $(TARGET_NAME)_libretro_psl1ght.a
+   CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   CC = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
+   AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
+   ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
+	STATIC_LINKING = 1
 else ifeq ($(platform), ngc)
    TARGET := $(TARGET_NAME)_libretro_ngc.a
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
    AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
-   ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN _DMSB_FIRST -DGEKKO -DHW_DOL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__
+   ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -DGEKKO -DHW_DOL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__
    STATIC_LINKING = 1
 else ifeq ($(platform), wii)
    TARGET := $(TARGET_NAME)_libretro_wii.a
@@ -136,16 +172,7 @@ LDFLAGS += $(fpic) $(SHARED)
 FLAGS += $(fpic)
 FLAGS += -I. -I../yabause -I../yabause/src
 
-WARNINGS := -Wall \
-	-Wno-narrowing \
-	-Wno-sign-compare \
-	-Wno-unused-variable \
-	-Wno-unused-function \
-	-Wno-uninitialized \
-	-Wno-unused-result \
-	-Wno-strict-aliasing \
-	-Wno-overflow
-
+WARNINGS :=
 FLAGS += -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) \
 			-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DVERSION=\"0.9.12\" -DHAVE_STRCASECMP
 
