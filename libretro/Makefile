@@ -50,6 +50,15 @@ else ifeq ($(platform), ios)
    CC = clang -arch armv7 -isysroot $(IOSSDK)
    CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
    CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
+else ifeq ($(platform), qnx)
+   TARGET := $(TARGET_NAME)_libretro_qnx.so
+   fpic := -fPIC
+   SHARED := -shared -Wl,--version-script=libretro/link.T
+	CC = qcc -Vgcc_ntoarmv7le
+   CC_AS = $(CC)
+	CXX = QCC -Vgcc_ntoarmv7le
+	AR = qcc -Vgcc_ntoarmv7le
+	ENDIANNESS_DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=softfp -DLSB_FIRST
 else ifeq ($(platform), ps3)
    TARGET := $(TARGET_NAME)_libretro_ps3.a
    CC = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-gcc.exe
@@ -181,7 +190,13 @@ FLAGS += -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) \
 			-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DVERSION=\"0.9.12\" -DHAVE_STRCASECMP
 
 CXXFLAGS += $(FLAGS)
-CFLAGS += $(FLAGS) -std=gnu99
+
+CFLAGS += $(FLAGS)
+ifeq ($(platform),qnx)
+CFLAGS += -Wc,-std=c99
+else
+CFLAGS += -std=gnu99
+endif
 
 $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
