@@ -33,8 +33,6 @@
 
 yabauseinit_struct yinit;
 static PerPad_struct *c1, *c2 = NULL;
-bool FPSisOn = false;
-bool firstRun = true;
 
 uint16_t *videoBuffer = NULL;
 int game_width;
@@ -412,7 +410,6 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
 
 void retro_unload_game(void) 
 {
-   firstRun = true;
 }
 
 unsigned retro_get_region(void)
@@ -462,12 +459,14 @@ void retro_deinit(void)
 
 void retro_reset(void)
 {
-	firstRun = true;
 	YabauseResetButton();
+   YabauseInit(&yinit);
+   YabauseSetDecilineMode(1);
 }
 
 void retro_run(void) 
 {
+   static bool firstRun = true;
 	update_input();
 	
    audio_size = SAMPLEFRAME;
@@ -478,7 +477,8 @@ void retro_run(void)
 		YabauseSetDecilineMode(1);
 		firstRun = false;
 	}
-	else {
+	else
+   {
 		ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
 		YabauseExec();
 		ScspMuteAudio(SCSP_MUTE_SYSTEM);
