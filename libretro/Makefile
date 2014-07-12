@@ -26,7 +26,15 @@ else ifeq ($(platform), osx)
    fpic := -fPIC -mmacosx-version-min=10.6
    SHARED := -dynamiclib
    ENDIANNESS_DEFINES := -DLSB_FIRST
-	#DYNAREC = 2
+   #DYNAREC = 2
+else ifeq ($(platform), ios)
+   TARGET := $(TARGET_NAME)_libretro_ios.dylib
+   fpic := -fPIC
+   SHARED := -dynamiclib
+   ENDIANNESS_DEFINES := -DLSB_FIRST
+   CC = clang -arch armv7 -isysroot $(IOSSDK)
+   CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
+   CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    CC = gcc

@@ -1,13 +1,9 @@
 #ifndef _MSC_VER
 #include <stdbool.h>
 #endif
-#include <sched.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef __CELLOS_LV2__
-//#include <malloc.h>
-#endif
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
