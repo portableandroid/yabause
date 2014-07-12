@@ -31,14 +31,12 @@
 #include "vidogl.h"
 #include "vidsoft.h"
 
-static bool failed_init;
 yabauseinit_struct yinit;
 static PerPad_struct *c1, *c2 = NULL;
 bool FPSisOn = false;
 bool firstRun = true;
 
 uint16_t *videoBuffer = NULL;
-static uint16_t frame_buffer[704*512];
 int game_width;
 int game_height;
 
@@ -54,30 +52,8 @@ void retro_set_audio_sample(retro_audio_sample_t cb) { (void)cb; }
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
 void retro_set_input_poll(retro_input_poll_t cb) { input_poll_cb = cb; }
 void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
-/*
-typedef struct
-{
-   unsigned retro;
-   unsigned saturn;
-} keymap;
 
-static const keymap bindmap[] = {
-   { RETRO_DEVICE_ID_JOYPAD_B, PERPAD_B },
-   { RETRO_DEVICE_ID_JOYPAD_A, PERPAD_C },
-   { RETRO_DEVICE_ID_JOYPAD_X, PERPAD_Y },
-   { RETRO_DEVICE_ID_JOYPAD_Y, PERPAD_A },
-   { RETRO_DEVICE_ID_JOYPAD_START, PERPAD_START },
-   { RETRO_DEVICE_ID_JOYPAD_L, PERPAD_X },
-   { RETRO_DEVICE_ID_JOYPAD_R, PERPAD_Z },
-   { RETRO_DEVICE_ID_JOYPAD_UP, PERPAD_UP },
-   { RETRO_DEVICE_ID_JOYPAD_DOWN, PERPAD_DOWN },
-   { RETRO_DEVICE_ID_JOYPAD_LEFT, PERPAD_LEFT },
-   { RETRO_DEVICE_ID_JOYPAD_RIGHT, PERPAD_RIGHT },
-   { RETRO_DEVICE_ID_JOYPAD_L2, PERPAD_LEFT_TRIGGER },
-   { RETRO_DEVICE_ID_JOYPAD_R2, PERPAD_RIGHT_TRIGGER }, 
-};
-*/
-static void update_input()
+static void update_input(void)
 {
     if (!input_poll_cb)
         return;
@@ -308,9 +284,8 @@ void updateCurrentResolution(void)
     // Test if VIDCore valid AND NOT the Dummy Interface (or at least VIDCore->id != 0). 
     // Avoid calling GetGlSize if Dummy/id=0 is selected
     if (VIDCore && VIDCore->id) 
-    {
-        VIDCore->GetGlSize(&current_width, &current_height);
-    }
+       VIDCore->GetGlSize(&current_width, &current_height);
+
     game_width = current_width;
     game_height = current_height;
 }
@@ -397,9 +372,6 @@ static char full_path[256];
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-   if(failed_init)
-      return false;
-
    snprintf(full_path, sizeof(full_path), info->path);
 
    yinit.cdcoretype = CDCORE_ISO;
