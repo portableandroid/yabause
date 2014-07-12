@@ -333,7 +333,7 @@ void retro_get_system_info(struct retro_system_info *info)
 	info->library_name = "Yabause";
 	info->library_version = "v0.9.12";
 	info->need_fullpath = true;
-	info->valid_extensions = "bin|cue|bin|CUE";
+	info->valid_extensions = "bin|cue|iso";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -393,14 +393,14 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
    (void)code;
 }
 
+static char full_path[256];
+
 bool retro_load_game(const struct retro_game_info *info)
 {
-   const char *full_path;
-
    if(failed_init)
       return false;
 
-   full_path = info->path;
+   snprintf(full_path, sizeof(full_path), info->path);
 
    yinit.cdcoretype = CDCORE_ISO;
 
