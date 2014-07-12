@@ -379,7 +379,11 @@ bool retro_load_game(const struct retro_game_info *info)
 	yinit.biospath = NULL;
 	
 	yinit.percoretype = PERCORE_DEFAULT;
+#ifdef SH2_DYNAREC
+	yinit.sh2coretype = 2;
+#else
 	yinit.sh2coretype = SH2CORE_INTERPRETER;
+#endif
 	
 	yinit.vidcoretype = VIDCORE_SOFT;
 	
@@ -472,7 +476,6 @@ void retro_run(void)
    audio_size = SAMPLEFRAME;
 
 	if(firstRun) {
-		//initYabauseWithCDCore:CDCORE_DUMMY	
 		YabauseInit(&yinit);
 		YabauseSetDecilineMode(1);
 		firstRun = false;

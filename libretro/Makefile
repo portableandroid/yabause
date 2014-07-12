@@ -1,5 +1,5 @@
-
 DEBUG = 0
+DYNAREC = 0
 
 ifeq ($(platform),)
 platform = unix
@@ -13,6 +13,7 @@ endif
 endif
 
 TARGET_NAME = yabause
+CC_AS ?= $(CC)
 
 ifeq ($(platform), unix)
    TARGET := $(TARGET_NAME)_libretro.so
@@ -20,12 +21,14 @@ ifeq ($(platform), unix)
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    ENDIANNESS_DEFINES := -DLSB_FIRST
    FLAGS += -DHAVE_MKDIR
+	#DYNAREC = 2
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC -mmacosx-version-min=10.6
    SHARED := -dynamiclib
    ENDIANNESS_DEFINES := -DLSB_FIRST
    FLAGS += -DHAVE_MKDIR
+	#DYNAREC = 2
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    CC = gcc
@@ -34,7 +37,9 @@ else
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    ENDIANNESS_DEFINES := -DLSB_FIRST
    FLAGS += -DHAVE__MKDIR
+	#DYNAREC = 2
 endif
+
 
 
 YABAUSE_DIR := ../yabause
@@ -88,8 +93,17 @@ LIBRETRO_SOURCES := libretro.c
 C68KEXEC_SOURCE := $(SOURCE_DIR)/c68k/c68kexec.c
 C68KEXEC_OBJECT := $(C68KEXEC_SOURCE:.c=.o)
 
-SOURCES := $(LIBRETRO_SOURCES) $(YABAUSE_SOURCES)
-OBJECTS := $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
+ifneq ($(DYNAREC),0)
+FLAGS += -DSH2_DYNAREC
+SOURCES += $(SOURCE_DIR)/sh2_dynarec/sh2_dynarec.c
+ifeq ($(DYNAREC),2)
+OBJECTS += $(SOURCE_DIR)/sh2_dynarec/linkage_x64.o
+endif
+endif
+
+SOURCES += $(LIBRETRO_SOURCES) $(YABAUSE_SOURCES)
+OBJECTS += $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
+
 
 all: $(TARGET)
 
@@ -121,6 +135,12 @@ CFLAGS += $(FLAGS) -std=gnu99
 
 $(TARGET): $(OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
+
+%.o: %.S
+	$(CC_AS) $(CFLAGS) -c $^ -o $@
+
+%.o: %.s
+	$(CC_AS) $(CFLAGS) -c $^ -o $@
 
 %.o: %.cpp
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
