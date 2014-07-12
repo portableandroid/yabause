@@ -20,14 +20,12 @@ ifeq ($(platform), unix)
    fpic := -fPIC
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    ENDIANNESS_DEFINES := -DLSB_FIRST
-   FLAGS += -DHAVE_MKDIR
 	#DYNAREC = 2
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC -mmacosx-version-min=10.6
    SHARED := -dynamiclib
    ENDIANNESS_DEFINES := -DLSB_FIRST
-   FLAGS += -DHAVE_MKDIR
 	#DYNAREC = 2
 else
    TARGET := $(TARGET_NAME)_libretro.dll
@@ -36,7 +34,6 @@ else
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    ENDIANNESS_DEFINES := -DLSB_FIRST
-   FLAGS += -DHAVE__MKDIR
 	#DYNAREC = 2
 endif
 
@@ -113,7 +110,7 @@ else
    FLAGS += -O0 -g
 endif
 
-LDFLAGS += $(fpic) -lz $(SHARED)
+LDFLAGS += $(fpic) $(SHARED)
 FLAGS += $(fpic)
 FLAGS += -I. -I../yabause -I../yabause/src
 
