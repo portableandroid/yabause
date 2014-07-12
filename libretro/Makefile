@@ -80,6 +80,14 @@ else ifeq ($(platform), psl1ght)
    AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
    ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 	STATIC_LINKING = 1
+else ifeq ($(platform), psp1)
+	TARGET := $(TARGET_NAME)_libretro_psp1.a
+	CC = psp-gcc$(EXE_EXT)
+	CC_AS = $(CC)
+	CXX = psp-g++$(EXE_EXT)
+	AR = psp-ar$(EXE_EXT)
+	ENDIANNESS_DEFINES += -DPSP -G0 -DLSB_FIRST
+	STATIC_LINKING = 1
 else ifeq ($(platform), ngc)
    TARGET := $(TARGET_NAME)_libretro_ngc.a
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)

@@ -35,7 +35,7 @@
 #ifdef _arch_dreamcast
 # include "dreamcast/localtime.h"
 #endif
-#ifdef PSP
+#if defined(PSP) && !defined(__LIBRETRO__)
 # include "psp/localtime.h"
 #endif
 
@@ -228,7 +228,7 @@ static void SmpcINTBACKStatus(void) {
    }
 #ifdef WIN32
    memcpy(&times, localtime(&tmp), sizeof(times));
-#elif defined(_arch_dreamcast) || defined(PSP)
+#elif defined(_arch_dreamcast) || defined(PSP) && !defined(__LIBRETRO__)
    internal_localtime_r(&tmp, &times);
 #else
    localtime_r(&tmp, &times);

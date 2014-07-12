@@ -76,7 +76,7 @@ extern SoundInterface_struct *SNDCoreList[];  // Defined by each port
 //-------------------------------------------------------------------------
 // PSP cache management macros
 
-#ifdef PSP
+#if defined(PSP) && !defined(__LIBRETRO__)
 
 # include "psp/common.h"
 # include "psp/me.h"
@@ -1214,7 +1214,7 @@ void ScspExec(int decilines)
 
    if (scsp_thread_running)
    {
-#ifdef PSP
+#if defined(PSP) && !defined(__LIBRETRO__)
       if (!psp_writeback_cache_for_scsp())
           PSP_UC(scsp_clock_target) = new_target; // Push just this one through
 #endif

@@ -60,7 +60,7 @@
 #if defined(GEKKO) && !defined(__LIBRETRO__)
 #include <ogc/lwp_watchdog.h>
 #endif
-#ifdef PSP
+#if defined(PSP) && !defined(__LIBRETRO__)
 #include "psp/common.h"
 #endif
 
