@@ -136,12 +136,16 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/vdp1.c \
 	$(SOURCE_DIR)/vdp2.c \
 	$(SOURCE_DIR)/vdp2debug.c \
-	$(SOURCE_DIR)/vidogl.c \
 	$(SOURCE_DIR)/vidshared.c \
 	$(SOURCE_DIR)/vidsoft.c \
-	$(SOURCE_DIR)/yabause.c \
+	$(SOURCE_DIR)/yabause.c
+
+ifeq ($(HAVE_GL),1)
+SOURCES_C += \
 	$(SOURCE_DIR)/ygl.c \
+	$(SOURCE_DIR)/vidogl.c \
 	$(SOURCE_DIR)/yglshader.c
+endif
 
 LIBRETRO_SOURCES := libretro.c
 
