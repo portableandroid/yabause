@@ -30,7 +30,7 @@
 yabauseinit_struct yinit;
 static PerPad_struct *c1, *c2 = NULL;
 
-uint16_t *videoBuffer = NULL;
+uint16_t *vid_buf = NULL;
 int game_width;
 int game_height;
 
@@ -294,7 +294,7 @@ void updateCurrentResolution(void)
 void YuiSwapBuffers(void) 
 {
     updateCurrentResolution();
-    memcpy(videoBuffer, dispbuffer, sizeof(u16) * game_width * game_height);
+    memcpy(vid_buf, dispbuffer, sizeof(u16) * game_width * game_height);
 }
 
 /************************************
@@ -459,7 +459,7 @@ void retro_init(void)
     const char *dir = NULL;
 	//TODO: setup RETRO_ENVIRONMENT_GET_SAVES_DIRECTORY
 
-	videoBuffer = (u16 *)calloc(sizeof(u16), 704 * 512);
+	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
     
 	//PerPad Init
     PerPortReset();
@@ -474,7 +474,9 @@ void retro_init(void)
 void retro_deinit(void)
 {
 	YabauseDeInit();
-	free(videoBuffer);
+
+   if (vid_buf)
+      free(vid_buf);
 }
 
 void retro_reset(void)
@@ -510,10 +512,10 @@ void retro_run(void)
       uint16_t r = ((source & 0xF80000) >> 19);
       uint16_t g = ((source & 0x00F800) >> 6);
       uint16_t b = ((source & 0x0000F8) << 7);
-      videoBuffer[i] = r | g | b;
+      vid_buf[i] = r | g | b;
    }
 	
-	video_cb(videoBuffer, game_width, game_height, game_width * 2);
+	video_cb(vid_buf, game_width, game_height, game_width * 2);
 }
 
 #ifdef ANDROID
