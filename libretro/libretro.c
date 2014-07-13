@@ -447,7 +447,8 @@ void retro_init(void)
     c1 = PerPadAdd(&PORTDATA1);
     c2 = PerPadAdd(&PORTDATA1);
 	
-    unsigned level = 3;
+    // Performance level for interpreter CPU core is 15
+    unsigned level = 15;
     environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 }
 
