@@ -503,11 +503,7 @@ void retro_run(void)
 		firstRun = false;
 	}
 	else
-   {
-		ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
 		YabauseExec();
-		ScspMuteAudio(SCSP_MUTE_SYSTEM);
-	}
 
    if (!do_flip)
    {
