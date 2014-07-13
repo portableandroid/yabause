@@ -34,6 +34,10 @@ uint16_t *videoBuffer = NULL;
 int game_width;
 int game_height;
 
+struct retro_perf_callback perf_cb;
+retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
+
+retro_log_printf_t log_cb;
 static retro_video_refresh_t video_cb;
 static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
@@ -256,17 +260,20 @@ VideoInterface_struct *VIDCoreList[] = {
 
 void YuiErrorMsg(const char *string)
 {
-    printf("Yabause Error %s", string);
+   if (log_cb)
+      log_cb(RETRO_LOG_ERROR, "Yabause: %s\n", string);
 }
 
 void YuiSetVideoAttribute(int type, int val)
 {
-    printf("Yabause called back to YuiSetVideoAttribute");
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO, "Yabause called back to YuSetVideoAttribute.\n");
 }
 
 int YuiSetVideoMode(int width, int height, int bpp, int fullscreen)
 {
-    printf("Yabause called, it want to set width of %d and height of %d",width,height);
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO, "Yabause called, it wants to set width of %d and height of %d.\n", width, height);
     return 0;
 }
 
@@ -434,6 +441,18 @@ size_t retro_get_memory_size(unsigned id)
 
 void retro_init(void)
 {
+   struct retro_log_callback log;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
+      log_cb = log.log;
+   else
+      log_cb = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb))
+      perf_get_cpu_features_cb = perf_cb.get_cpu_features;
+   else
+      perf_get_cpu_features_cb = NULL;
+
 	game_width = 320;
 	game_height = 240;
 	
