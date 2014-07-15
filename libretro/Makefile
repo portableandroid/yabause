@@ -117,6 +117,7 @@ else
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    ENDIANNESS_DEFINES := -DLSB_FIRST
+	FLAGS += -DHAVE_WFOPEN
 	#DYNAREC = 2
 endif
 
