@@ -304,13 +304,9 @@ void updateCurrentResolution(void)
     game_height = current_height;
 }
 
-static bool do_flip = false;
-
 void YuiSwapBuffers(void) 
 {
     updateCurrentResolution();
-    do_flip = true;
-    memcpy(vid_buf, dispbuffer, sizeof(u16) * game_width * game_height);
 }
 
 /************************************
@@ -536,7 +532,6 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables();
 
-   do_flip = false;
 	update_input();
 	
    audio_size = SAMPLEFRAME;
@@ -548,12 +543,6 @@ void retro_run(void)
 	}
 	else
 		YabauseExec();
-
-   if (!do_flip)
-   {
-      video_cb(NULL, game_width, game_height, game_width * 2);
-      return;
-   }
 
    for (unsigned i = 0; i < game_height * game_width; i++)
    {
