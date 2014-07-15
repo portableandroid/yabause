@@ -35,7 +35,6 @@ int game_width;
 int game_height;
 
 static bool frameskip_enable = false;
-static bool firstRun = true;
 
 struct retro_perf_callback perf_cb;
 retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
@@ -443,6 +442,9 @@ bool retro_load_game(const struct retro_game_info *info)
    yinit.usethreads = 0;
 #endif
 
+   YabauseInit(&yinit);
+   YabauseSetDecilineMode(1);
+
    return true;
 }
 
@@ -456,6 +458,7 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
 
 void retro_unload_game(void) 
 {
+	YabauseDeInit();
 }
 
 unsigned retro_get_region(void)
@@ -512,8 +515,6 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
-	YabauseDeInit();
-
    if (vid_buf)
       free(vid_buf);
 }
@@ -536,13 +537,7 @@ void retro_run(void)
 	
    audio_size = SAMPLEFRAME;
 
-	if(firstRun) {
-		YabauseInit(&yinit);
-		YabauseSetDecilineMode(1);
-		firstRun = false;
-	}
-	else
-		YabauseExec();
+   YabauseExec();
 
    for (unsigned i = 0; i < game_height * game_width; i++)
    {
