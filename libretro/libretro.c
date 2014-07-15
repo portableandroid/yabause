@@ -34,6 +34,9 @@ uint16_t *vid_buf = NULL;
 int game_width;
 int game_height;
 
+static bool frameskip_enable = false;
+static bool firstRun = true;
+
 struct retro_perf_callback perf_cb;
 retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
 
@@ -44,7 +47,17 @@ static retro_input_state_t input_state_cb;
 static retro_environment_t environ_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
-void retro_set_environment(retro_environment_t cb) { environ_cb = cb; }
+void retro_set_environment(retro_environment_t cb)
+{
+   static const struct retro_variable vars[] = {
+      { "yabause_frameskip", "Frameskip; disabled|enabled" },
+      { NULL, NULL },
+   };
+
+   environ_cb = cb;
+
+   cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
+}
 void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
 void retro_set_audio_sample(retro_audio_sample_t cb) { (void)cb; }
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
@@ -374,38 +387,61 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 
 static char full_path[256];
 
+static void check_variables(void)
+{
+   struct retro_variable var;
+   var.key = "yabause_frameskip";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0 && frameskip_enable)
+      {
+         DisableAutoFrameSkip();
+         frameskip_enable = false;
+      }
+      else if (strcmp(var.value, "enabled") == 0 && !frameskip_enable)
+      {
+         EnableAutoFrameSkip();
+         frameskip_enable = true;
+      }
+   }
+}
+
 bool retro_load_game(const struct retro_game_info *info)
 {
+   check_variables();
+
    snprintf(full_path, sizeof(full_path), info->path);
 
    yinit.cdcoretype = CDCORE_ISO;
 
-	yinit.cdpath = full_path;
-	// Emulate BIOS
-	yinit.biospath = NULL;
-	
-	yinit.percoretype = PERCORE_DEFAULT;
+   yinit.cdpath = full_path;
+   // Emulate BIOS
+   yinit.biospath = NULL;
+
+   yinit.percoretype = PERCORE_DEFAULT;
 #ifdef SH2_DYNAREC
-	yinit.sh2coretype = 2;
+   yinit.sh2coretype = 2;
 #else
-	yinit.sh2coretype = SH2CORE_INTERPRETER;
+   yinit.sh2coretype = SH2CORE_INTERPRETER;
 #endif
-	
-	yinit.vidcoretype = VIDCORE_SOFT;
-	
-    yinit.sndcoretype = SNDCORE_LIBRETRO;
-    yinit.m68kcoretype = M68KCORE_C68K;
-    yinit.carttype = 0;
-    yinit.regionid = REGION_AUTODETECT;
-    yinit.buppath = NULL;
-    yinit.mpegpath = NULL;
 
-    yinit.videoformattype = VIDEOFORMATTYPE_NTSC;
+   yinit.vidcoretype = VIDCORE_SOFT;
 
-    yinit.frameskip = false;
-    yinit.clocksync = 0;
-    yinit.basetime = 0;
-    yinit.usethreads = 0;
+   yinit.sndcoretype = SNDCORE_LIBRETRO;
+   yinit.m68kcoretype = M68KCORE_C68K;
+   yinit.carttype = 0;
+   yinit.regionid = REGION_AUTODETECT;
+   yinit.buppath = NULL;
+   yinit.mpegpath = NULL;
+
+   yinit.videoformattype = VIDEOFORMATTYPE_NTSC;
+
+   yinit.frameskip = frameskip_enable;
+   yinit.clocksync = 0;
+   yinit.basetime = 0;
+   yinit.usethreads = 0;
 
    return true;
 }
@@ -491,7 +527,11 @@ void retro_reset(void)
 
 void retro_run(void) 
 {
-   static bool firstRun = true;
+   bool updated = false;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+      check_variables();
+
    do_flip = false;
 	update_input();
 	
