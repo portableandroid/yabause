@@ -41,8 +41,7 @@ ifeq ($(platform), unix)
    ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
 	LDFLAGS += -lpthread
-	THREAD_FILES := thr-unix.c
-	HAVE_THREADS = 1
+	HAVE_PTHREADS = 1
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC -mmacosx-version-min=10.6
@@ -50,8 +49,7 @@ else ifeq ($(platform), osx)
    ENDIANNESS_DEFINES := -DLSB_FIRST
    #DYNAREC = 2
 	LDFLAGS += -lpthread
-	THREAD_FILES := thr-unix.c
-	HAVE_THREADS = 1
+	HAVE_PTHREADS = 1
 else ifeq ($(platform), ios)
    TARGET := $(TARGET_NAME)_libretro_ios.dylib
    fpic := -fPIC
@@ -120,9 +118,14 @@ else
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
-	THREAD_FILES := thr-dummy.c
 endif
 
+ifeq ($(HAVE_PTHREADS),1)
+	HAVE_THREADS = 1
+	THREAD_FILES := thr-unix.c
+else
+	THREAD_FILES := thr-dummy.c
+endif
 
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/bios.c \
