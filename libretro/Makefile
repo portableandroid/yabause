@@ -1,5 +1,6 @@
 DEBUG = 0
 DYNAREC = 0
+HAVE_THREADS = 1
 
 ifeq ($(platform),)
 platform = unix
@@ -27,6 +28,9 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
    system_platform = win
 endif
 
+YABAUSE_DIR := ../yabause
+SOURCE_DIR := $(YABAUSE_DIR)/src
+
 TARGET_NAME = yabause
 CC_AS ?= $(CC)
 
@@ -36,12 +40,18 @@ ifeq ($(platform), unix)
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
+	LDFLAGS += -lpthread
+	THREAD_FILES := thr-unix.c
+	HAVE_THREADS = 1
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC -mmacosx-version-min=10.6
    SHARED := -dynamiclib
    ENDIANNESS_DEFINES := -DLSB_FIRST
    #DYNAREC = 2
+	LDFLAGS += -lpthread
+	THREAD_FILES := thr-unix.c
+	HAVE_THREADS = 1
 else ifeq ($(platform), ios)
    TARGET := $(TARGET_NAME)_libretro_ios.dylib
    fpic := -fPIC
@@ -110,12 +120,9 @@ else
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
+	THREAD_FILES := thr-dummy.c
 endif
 
-
-
-YABAUSE_DIR := ../yabause
-SOURCE_DIR := $(YABAUSE_DIR)/src
 
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/bios.c \
@@ -148,7 +155,7 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/smpc.c \
 	$(SOURCE_DIR)/snddummy.c \
 	$(SOURCE_DIR)/sndwav.c \
-	$(SOURCE_DIR)/thr-dummy.c \
+	$(THREAD_FILES) \
 	$(SOURCE_DIR)/titan/titan.c \
 	$(SOURCE_DIR)/vdp1.c \
 	$(SOURCE_DIR)/vdp2.c \
@@ -177,9 +184,12 @@ OBJECTS += $(SOURCE_DIR)/sh2_dynarec/linkage_x64.o
 endif
 endif
 
+ifeq ($(HAVE_THREADS),1)
+FLAGS += -DHAVE_THREADS=1
+endif
+
 SOURCES += $(LIBRETRO_SOURCES) $(YABAUSE_SOURCES)
 OBJECTS += $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
-
 
 all: $(TARGET)
 

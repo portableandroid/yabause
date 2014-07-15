@@ -441,7 +441,7 @@ bool retro_load_game(const struct retro_game_info *info)
    yinit.frameskip = frameskip_enable;
    yinit.clocksync = 0;
    yinit.basetime = 0;
-   yinit.usethreads = 0;
+   yinit.usethreads = 1;
 
    return true;
 }
