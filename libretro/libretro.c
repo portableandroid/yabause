@@ -412,7 +412,7 @@ bool retro_load_game(const struct retro_game_info *info)
 {
    check_variables();
 
-   snprintf(full_path, sizeof(full_path), info->path);
+   snprintf(full_path, sizeof(full_path), "%s", info->path);
 
    yinit.cdcoretype = CDCORE_ISO;
 
@@ -441,7 +441,11 @@ bool retro_load_game(const struct retro_game_info *info)
    yinit.frameskip = frameskip_enable;
    yinit.clocksync = 0;
    yinit.basetime = 0;
+#ifdef HAVE_THREADS
    yinit.usethreads = 1;
+#else
+   yinit.usethreads = 0;
+#endif
 
    return true;
 }
