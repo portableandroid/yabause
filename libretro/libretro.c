@@ -10,6 +10,8 @@
 #pragma pack(1)
 #endif
 
+#include <sys/stat.h>
+
 #include "libretro.h"
 
 #include "vdp1.h"
@@ -381,6 +383,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 }
 
 static char full_path[256];
+static char bios_path[256];
 
 static void check_variables(void)
 {
@@ -403,6 +406,55 @@ static void check_variables(void)
    }
 }
 
+static int does_file_exist(const char *filename)
+{
+   struct stat st;
+   int result = stat(filename, &st);
+   return result == 0;
+}
+
+void retro_init(void)
+{
+   struct retro_log_callback log;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
+      log_cb = log.log;
+   else
+      log_cb = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb))
+      perf_get_cpu_features_cb = perf_cb.get_cpu_features;
+   else
+      perf_get_cpu_features_cb = NULL;
+
+	game_width = 320;
+	game_height = 240;
+	
+   const char *dir = NULL;
+   environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir);
+
+   if (dir)
+   {
+#ifdef _WIN32
+      char slash = '\\';
+#else
+      char slash = '/';
+#endif
+      snprintf(bios_path, sizeof(bios_path), "%s%c%s", dir, slash, "saturn_bios.bin");
+   }
+
+	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
+    
+	//PerPad Init
+    PerPortReset();
+    c1 = PerPadAdd(&PORTDATA1);
+    c2 = PerPadAdd(&PORTDATA1);
+	
+    // Performance level for interpreter CPU core is 16
+    unsigned level = 16;
+    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
+}
+
 bool retro_load_game(const struct retro_game_info *info)
 {
    check_variables();
@@ -413,7 +465,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    yinit.cdpath = full_path;
    // Emulate BIOS
-   yinit.biospath = NULL;
+   yinit.biospath = (bios_path[0] != '\0' && does_file_exist(bios_path)) ? bios_path : NULL;
 
    yinit.percoretype = PERCORE_DEFAULT;
 #ifdef SH2_DYNAREC
@@ -481,37 +533,6 @@ size_t retro_get_memory_size(unsigned id)
     return 0;
 }
 
-void retro_init(void)
-{
-   struct retro_log_callback log;
-
-   if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
-      log_cb = log.log;
-   else
-      log_cb = NULL;
-
-   if (environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb))
-      perf_get_cpu_features_cb = perf_cb.get_cpu_features;
-   else
-      perf_get_cpu_features_cb = NULL;
-
-	game_width = 320;
-	game_height = 240;
-	
-    const char *dir = NULL;
-	//TODO: setup RETRO_ENVIRONMENT_GET_SAVES_DIRECTORY
-
-	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
-    
-	//PerPad Init
-    PerPortReset();
-    c1 = PerPadAdd(&PORTDATA1);
-    c2 = PerPadAdd(&PORTDATA1);
-	
-    // Performance level for interpreter CPU core is 16
-    unsigned level = 16;
-    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
-}
 
 void retro_deinit(void)
 {
