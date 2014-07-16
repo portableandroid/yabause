@@ -36,6 +36,7 @@ uint16_t *vid_buf = NULL;
 int game_width;
 int game_height;
 
+static bool hle_bios_force = false;
 static bool frameskip_enable = false;
 
 struct retro_perf_callback perf_cb;
@@ -52,6 +53,7 @@ void retro_set_environment(retro_environment_t cb)
 {
    static const struct retro_variable vars[] = {
       { "yabause_frameskip", "Frameskip; disabled|enabled" },
+      { "yabause_force_hle_bios", "Force HLE BIOS (restart); disabled|enabled" },
       { NULL, NULL },
    };
 
@@ -404,6 +406,17 @@ static void check_variables(void)
          frameskip_enable = true;
       }
    }
+
+   var.key = "yabause_force_hle_bios";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0 && frameskip_enable)
+         hle_bios_force = false;
+      else if (strcmp(var.value, "enabled") == 0 && !frameskip_enable)
+         hle_bios_force = true;
+   }
 }
 
 static int does_file_exist(const char *filename)
@@ -465,7 +478,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    yinit.cdpath = full_path;
    // Emulate BIOS
-   yinit.biospath = (bios_path[0] != '\0' && does_file_exist(bios_path)) ? bios_path : NULL;
+   yinit.biospath = (bios_path[0] != '\0' && does_file_exist(bios_path) && !hle_bios_force) ? bios_path : NULL;
 
    yinit.percoretype = PERCORE_DEFAULT;
 #ifdef SH2_DYNAREC
