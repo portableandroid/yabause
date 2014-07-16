@@ -125,7 +125,7 @@ ifeq ($(HAVE_PTHREADS),1)
 	HAVE_THREADS = 1
 	THREAD_FILES := thr-unix.c
 else
-	THREAD_FILES := thr-dummy.c
+	THREAD_FILES := $(SOURCE_DIR)/thr-dummy.c
 endif
 
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
