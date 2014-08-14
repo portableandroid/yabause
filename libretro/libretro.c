@@ -37,6 +37,7 @@ int game_height;
 
 static bool hle_bios_force = false;
 static bool frameskip_enable = false;
+static int addon_cart_type = CART_NONE;
 
 struct retro_perf_callback perf_cb;
 retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
@@ -53,6 +54,8 @@ void retro_set_environment(retro_environment_t cb)
    static const struct retro_variable vars[] = {
       { "yabause_frameskip", "Frameskip; disabled|enabled" },
       { "yabause_force_hle_bios", "Force HLE BIOS (restart); disabled|enabled" },
+      //{ "yabause_addon_cart", "Addon Cartridge (restart); none|action_replay|4M_save|8M_save|16M_save|32M_save|8M_ram|32M_ram|netlink|16M_rom|jap_modem" },
+      { "yabause_addon_cart", "Addon Cartridge (restart); none|1M_ram|4M_ram" },
       { NULL, NULL },
    };
 
@@ -508,6 +511,8 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 
 static char full_path[256];
 static char bios_path[256];
+//static char save_path[256];
+//static char save_dir[256];
 
 static void check_variables(void)
 {
@@ -534,11 +539,40 @@ static void check_variables(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
-      if (strcmp(var.value, "disabled") == 0 && frameskip_enable)
+      if (strcmp(var.value, "disabled") == 0 && hle_bios_force)
          hle_bios_force = false;
-      else if (strcmp(var.value, "enabled") == 0 && !frameskip_enable)
+      else if (strcmp(var.value, "enabled") == 0 && !hle_bios_force)
          hle_bios_force = true;
    }
+   
+   var.key = "yabause_addon_cart";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "none") == 0 && addon_cart_type != CART_NONE)
+         addon_cart_type = CART_NONE;
+      /*else if (strcmp(var.value, "action_replay") == 0 && addon_cart_type != CART_PAR)
+         addon_cart_type = CART_PAR;
+      else if (strcmp(var.value, "4M_save") == 0 && addon_cart_type != CART_BACKUPRAM4MBIT)
+         addon_cart_type = CART_BACKUPRAM4MBIT;
+      else if (strcmp(var.value, "8M_save") == 0 && addon_cart_type != CART_BACKUPRAM8MBIT)
+         addon_cart_type = CART_BACKUPRAM8MBIT;
+      else if (strcmp(var.value, "16M_save") == 0 && addon_cart_type != CART_BACKUPRAM16MBIT)
+         addon_cart_type = CART_BACKUPRAM16MBIT;
+      else if (strcmp(var.value, "32M_save") == 0 && addon_cart_type != CART_BACKUPRAM32MBIT)
+         addon_cart_type = CART_BACKUPRAM32MBIT;*/
+      else if (strcmp(var.value, "1M_ram") == 0 && addon_cart_type != CART_DRAM8MBIT)
+         addon_cart_type = CART_DRAM8MBIT;
+      else if (strcmp(var.value, "4M_ram") == 0 && addon_cart_type != CART_DRAM32MBIT)
+         addon_cart_type = CART_DRAM32MBIT;
+      /*else if (strcmp(var.value, "netlink") == 0 && addon_cart_type != CART_NETLINK)
+         addon_cart_type = CART_NETLINK;
+      else if (strcmp(var.value, "16M_rom") == 0 && addon_cart_type != CART_ROM16MBIT)
+         addon_cart_type = CART_ROM16MBIT;
+      else if (strcmp(var.value, "jap_modem") == 0 && addon_cart_type != CART_JAPMODEM)
+         addon_cart_type = CART_JAPMODEM;*/
+   }
+   
 }
 
 static int does_file_exist(const char *filename)
@@ -577,7 +611,7 @@ void retro_init(void)
 #endif
       snprintf(bios_path, sizeof(bios_path), "%s%c%s", dir, slash, "saturn_bios.bin");
    }
-
+   
 	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
     
    if(PERCore) PERCore->Init();
@@ -593,7 +627,7 @@ bool retro_load_game(const struct retro_game_info *info)
    check_variables();
 
    snprintf(full_path, sizeof(full_path), "%s", info->path);
-
+   
    yinit.cdcoretype = CDCORE_ISO;
 
    yinit.cdpath = full_path;
@@ -611,7 +645,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    yinit.sndcoretype = SNDCORE_LIBRETRO;
    yinit.m68kcoretype = M68KCORE_C68K;
-   yinit.carttype = 0;
+   yinit.carttype = addon_cart_type;
    yinit.regionid = REGION_AUTODETECT;
    yinit.buppath = NULL;
    yinit.mpegpath = NULL;
@@ -658,14 +692,36 @@ unsigned retro_api_version(void)
 
 void *retro_get_memory_data(unsigned id)
 {
-    return NULL;
+   uint8_t *data;
+
+   switch (id)
+   {
+      case RETRO_MEMORY_SAVE_RAM:
+         data = BupRam;
+         break;
+      default:
+         data = NULL;
+         break;
+   }
+   return data;
 }
 
 size_t retro_get_memory_size(unsigned id)
 {
-    return 0;
-}
+   unsigned size;
 
+   switch (id)
+   {
+      case RETRO_MEMORY_SAVE_RAM:
+         size = 0x10000;
+         break;
+      default:
+         size = 0;
+         break;
+   }
+
+   return size;
+}
 
 void retro_deinit(void)
 {
