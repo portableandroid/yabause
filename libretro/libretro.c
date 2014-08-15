@@ -681,8 +681,8 @@ void retro_unload_game(void)
 }
 
 unsigned retro_get_region(void)
-{
-    return RETRO_REGION_NTSC;
+{  
+   return Cs2GetRegionID() > 6 ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
 }
 
 unsigned retro_api_version(void)
