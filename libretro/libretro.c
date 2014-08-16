@@ -24,6 +24,7 @@
 
 //#include "m68kc68k.h"
 #include "cs0.h"
+#include "cs2.h"
 
 #include "m68kcore.h"
 #include "vidogl.h"
@@ -92,13 +93,15 @@ void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
 #define PERCORE_LIBRETRO 2
 //Libretro API limited to 8 players? Saturn supports up to 12
 #define MAX_PLAYERS 8
-static void *controller[MAX_PLAYERS] = {0};
+//static void *controller[MAX_PLAYERS] = {0};
 static int pad_type[MAX_PLAYERS] = {1,1,1,1,1,1,1,1};
 
 int PERLIBRETROInit(void)
 {
     PortData_struct* portdata = 0;
-    int i = 0;
+    u32 i = 0;
+    u8 j = 0;
+    void *controller;
     
     PerPortReset();
     
@@ -111,14 +114,23 @@ int PERLIBRETROInit(void)
         switch(pad_type[i]){
             case RETRO_DEVICE_NONE:
                 //Use add PerAddPeripherial to add not present ID?
-                controller[i] = 0;
+                controller = NULL;
                 break;
             case RETRO_DEVICE_ANALOG:
-                controller[i] = (void*)Per3DPadAdd(portdata);
+                controller = (void*)Per3DPadAdd(portdata);
+                for(j = PERPAD_UP; j <= PERPAD_Z; j++) {
+                    PerSetKey((i << 8) + j, j, controller);
+                }
+                for(j = PERANALOG_AXIS1; j <= PERANALOG_AXIS7; j++) {
+                    PerSetKey((i << 8) + j, j, controller);
+                }
                 break;
             case RETRO_DEVICE_JOYPAD:
             default:
-                controller[i] = (void*)PerPadAdd(portdata);
+                controller = (void*)PerPadAdd(portdata);
+                for(j = PERPAD_UP; j <= PERPAD_Z; j++) {
+                    PerSetKey((i << 8) + j, j, controller);
+                }
                 break;
         }
     }
@@ -127,100 +139,93 @@ int PERLIBRETROInit(void)
 
 static int PERLIBRETROHandleEvents(void)
 {
-   if (!input_poll_cb)
-      return 1;
-
-   input_poll_cb();
-
    int i = 0;
-   PerAnalog_struct* analog = 0;
-   PerPad_struct* digital = 0;
+   int analog_left_x = 0;
+   int analog_left_y = 0;
+   //PerAnalog_struct* analog = 0;
+   //PerPad_struct* digital = 0;
    
    for(i = 0; i < MAX_PLAYERS; i++) {
-      analog = (PerAnalog_struct*)controller[i];
-      digital = (PerPad_struct*)controller[i];
+      //analog = (PerAnalog_struct*)controller[i];
+      //digital = (PerPad_struct*)controller[i];
+       
+      analog_left_x = 0;
+      analog_left_y = 0;
       
       switch(pad_type[i]){
          case RETRO_DEVICE_ANALOG:
-         {
-         int analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG, 
+         analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG, 
             RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
+         
+         PerAxisValue((i << 8) + PERANALOG_AXIS1, (u8)((analog_left_x + 0x8000) >> 8));
 
-         int analog_left_y = input_state_cb(i, RETRO_DEVICE_ANALOG,
+         analog_left_y = input_state_cb(i, RETRO_DEVICE_ANALOG,
             RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
 
-            //u32 l_right = analog_left_x > 0 ?  analog_left_x : 0;
-            //u32 l_left  = analog_left_x < 0 ? -analog_left_x : 0;
-            //u32 l_down  = analog_left_y > 0 ?  analog_left_y : 0;
-            //u32 l_up    = analog_left_y < 0 ? -analog_left_y : 0;
-
-            PerAxis1Value(analog, (analog_left_x + 0x8000) >> 8);
-            PerAxis2Value(analog, (analog_left_y + 0x8000) >> 8);
-            //PerAxis3Value((PerAnalog_struct*)controller[i], l_down >> 8);
-            //PerAxis4Value((PerAnalog_struct*)controller[i], l_up >> 8);
-         }
+         PerAxisValue((i << 8) + PERANALOG_AXIS2, (u8)((analog_left_y + 0x8000) >> 8));
          case RETRO_DEVICE_JOYPAD:
-         {
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
-            PerPadUpPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_UP);
          else
-            PerPadUpReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_UP);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
-            PerPadDownPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_DOWN);
          else
-            PerPadDownReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_DOWN);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
-            PerPadLeftPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_LEFT);
          else
-            PerPadLeftReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_LEFT);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
-            PerPadRightPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_RIGHT);
          else
-            PerPadRightReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_RIGHT);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
-            PerPadAPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_A);
          else
-            PerPadAReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_A);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
-            PerPadBPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_B);
          else
-            PerPadBReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_B);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
-            PerPadCPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_C);
          else
-            PerPadCReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_C);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X))
-            PerPadXPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_X);
          else
-            PerPadXReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_X);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
-            PerPadYPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_Y);
          else
-            PerPadYReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_Y);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
-            PerPadZPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_Z);
          else
-            PerPadZReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_Z);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START))
-            PerPadStartPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_START);
          else
-            PerPadStartReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_START);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
-            PerPadLTriggerPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_LEFT_TRIGGER);
          else
-            PerPadLTriggerReleased(digital);
+            PerKeyUp((i << 8) + PERPAD_LEFT_TRIGGER);
          if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
-            PerPadRTriggerPressed(digital);
+            PerKeyDown((i << 8) + PERPAD_RIGHT_TRIGGER);
          else
-            PerPadRTriggerReleased(digital);
-         }
+            PerKeyUp((i << 8) + PERPAD_RIGHT_TRIGGER);
          break;
 
          default:
          break;
       }
    }
-    return 0;
+   
+   if ( YabauseExec() != 0 )
+      return -1;
+   return 0;
 }
 
 void PERLIBRETRODeInit(void) {
@@ -614,7 +619,7 @@ void retro_init(void)
    
 	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
     
-   if(PERCore) PERCore->Init();
+    if(PERCore) PERCore->Init();
     //update_peripherals();
 	
     // Performance level for interpreter CPU core is 16
@@ -742,13 +747,13 @@ void retro_run(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables();
-   
-   if(PERCore) PERCore->HandleEvents();
-   //update_input();
 	
    audio_size = SAMPLEFRAME;
-
-   YabauseExec();
+   
+   input_poll_cb();
+   
+   if(PERCore) PERCore->HandleEvents();
+   //YabauseExec();
 
    for (unsigned i = 0; i < game_height * game_width; i++)
    {
