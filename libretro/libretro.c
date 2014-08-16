@@ -57,6 +57,7 @@ void retro_set_environment(retro_environment_t cb)
       { "yabause_force_hle_bios", "Force HLE BIOS (restart); disabled|enabled" },
       //{ "yabause_addon_cart", "Addon Cartridge (restart); none|action_replay|4M_save|8M_save|16M_save|32M_save|8M_ram|32M_ram|netlink|16M_rom|jap_modem" },
       { "yabause_addon_cart", "Addon Cartridge (restart); none|1M_ram|4M_ram" },
+      { "yabause_multitap", "Multitaps Connected; none|one|two" },
       { NULL, NULL },
    };
 
@@ -92,9 +93,10 @@ void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
 // PERLIBRETRO
 #define PERCORE_LIBRETRO 2
 //Libretro API limited to 8 players? Saturn supports up to 12
-#define MAX_PLAYERS 8
+//#define MAX_PLAYERS 8
 //static void *controller[MAX_PLAYERS] = {0};
-static int pad_type[MAX_PLAYERS] = {1,1,1,1,1,1,1,1};
+static int pad_type[8] = {1,1,1,1,1,1,1,1};
+static unsigned players = 2;
 
 int PERLIBRETROInit(void)
 {
@@ -105,15 +107,14 @@ int PERLIBRETROInit(void)
     
     PerPortReset();
     
-    for(i = 0; i < MAX_PLAYERS; i++) {
+    for(i = 0; i < players; i++) {
         //Ports can handle 6 peripherals, fill port 1 first.
-        if(i < 6)
+        if(players > 2 && i < 6 || i == 0)
             portdata = &PORTDATA1;
         else
             portdata = &PORTDATA2;
         switch(pad_type[i]){
             case RETRO_DEVICE_NONE:
-                //Use add PerAddPeripherial to add not present ID?
                 controller = NULL;
                 break;
             case RETRO_DEVICE_ANALOG:
@@ -142,12 +143,8 @@ static int PERLIBRETROHandleEvents(void)
    int i = 0;
    int analog_left_x = 0;
    int analog_left_y = 0;
-   //PerAnalog_struct* analog = 0;
-   //PerPad_struct* digital = 0;
    
-   for(i = 0; i < MAX_PLAYERS; i++) {
-      //analog = (PerAnalog_struct*)controller[i];
-      //digital = (PerPad_struct*)controller[i];
+   for(i = 0; i < players; i++) {
        
       analog_left_x = 0;
       analog_left_y = 0;
@@ -576,6 +573,23 @@ static void check_variables(void)
          addon_cart_type = CART_ROM16MBIT;
       else if (strcmp(var.value, "jap_modem") == 0 && addon_cart_type != CART_JAPMODEM)
          addon_cart_type = CART_JAPMODEM;*/
+   }
+   
+   var.key = "yabause_multitap";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+       unsigned old = players;
+       if (strcmp(var.value, "none") == 0)
+           players = 2;
+       else if (strcmp(var.value, "one") == 0)
+           players = 6;
+       else if (strcmp(var.value, "two") == 0)
+           //yabause supports 12, retroarch limited to 8?
+           players = 8;
+       
+       if (players != old && PERCore)
+           PERCore->Init();
    }
    
 }
