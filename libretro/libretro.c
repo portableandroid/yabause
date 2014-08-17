@@ -104,7 +104,7 @@ void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
 
 static int pad_type[8] = {1,1,1,1,1,1,1,1};
 static unsigned players = 2;
-
+static bool multitap[2] = {0};
 
 int PERLIBRETROInit(void)
 {
@@ -112,6 +112,13 @@ int PERLIBRETROInit(void)
     u32 i = 0;
     u8 j = 0;
     void *controller;
+    
+    if(!multitap[0] && !multitap[1])
+        players = 2;
+    else if(multitap[0] && multitap[1])
+        players = 8;
+    else
+        players = 6;
     
     PerPortReset();
     
@@ -480,24 +487,21 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
        case RETRO_DEVICE_JOYPAD:
        case RETRO_DEVICE_ANALOG:
            pad_type[port] = device;
+           if(port < 2)
+               multitap[port] = false;
            break;
+       //assumes only ports 1 and 2 can report as multitap
        case RETRO_DEVICE_MTAP_PAD:
            pad_type[port] = RETRO_DEVICE_JOYPAD;
+           if(port < 2)
+              multitap[port] = true;
            break;
        case RETRO_DEVICE_MTAP_3D:
            pad_type[port] = RETRO_DEVICE_ANALOG;
+           if(port < 2)
+              multitap[port] = true;
            break;
    }
-   
-   bool mtap1 = (pad_type[0] == RETRO_DEVICE_MTAP_PAD) || (pad_type[0] == RETRO_DEVICE_MTAP_3D);
-   bool mtap2 = (pad_type[1] == RETRO_DEVICE_MTAP_PAD) || (pad_type[1] == RETRO_DEVICE_MTAP_3D);
-
-   if(!mtap1 && !mtap2)
-       players = 2;
-   else if (mtap1 && mtap2)
-       players = 8;
-   else 
-       players = 6;
    
    if(PERCore) PERCore->Init();
 }
