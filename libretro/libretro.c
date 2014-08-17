@@ -50,14 +50,15 @@ static retro_input_state_t input_state_cb;
 static retro_environment_t environ_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
+#define RETRO_DEVICE_MTAP_PAD RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0)
+#define RETRO_DEVICE_MTAP_3D  RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 0)
+
 void retro_set_environment(retro_environment_t cb)
 {
    static const struct retro_variable vars[] = {
       { "yabause_frameskip", "Frameskip; disabled|enabled" },
       { "yabause_force_hle_bios", "Force HLE BIOS (restart); disabled|enabled" },
-      //{ "yabause_addon_cart", "Addon Cartridge (restart); none|action_replay|4M_save|8M_save|16M_save|32M_save|8M_ram|32M_ram|netlink|16M_rom|jap_modem" },
       { "yabause_addon_cart", "Addon Cartridge (restart); none|1M_ram|4M_ram" },
-      { "yabause_multitap", "Multitaps Connected; none|one|two" },
       { NULL, NULL },
    };
 
@@ -67,9 +68,17 @@ void retro_set_environment(retro_environment_t cb)
        { "None", RETRO_DEVICE_NONE },
    };
    
+   static const struct retro_controller_description mtaps[] = {
+       { "Saturn Pad", RETRO_DEVICE_JOYPAD },
+       { "Saturn 3D Pad", RETRO_DEVICE_ANALOG },
+       { "Multitap + Pad", RETRO_DEVICE_MTAP_PAD },
+       { "Multitap + 3D Pad", RETRO_DEVICE_MTAP_3D },
+       { "None", RETRO_DEVICE_NONE },
+   };
+   
    static const struct retro_controller_info ports[] = {
-      { peripherals, 3 },
-      { peripherals, 3 },
+      { mtaps, 5 },
+      { mtaps, 5 },
       { peripherals, 3 },
       { peripherals, 3 },
       { peripherals, 3 },
@@ -92,11 +101,10 @@ void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
 
 // PERLIBRETRO
 #define PERCORE_LIBRETRO 2
-//Libretro API limited to 8 players? Saturn supports up to 12
-//#define MAX_PLAYERS 8
-//static void *controller[MAX_PLAYERS] = {0};
+
 static int pad_type[8] = {1,1,1,1,1,1,1,1};
 static unsigned players = 2;
+
 
 int PERLIBRETROInit(void)
 {
@@ -467,10 +475,31 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 }
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
-{
-   pad_type[port] = device;
+{   
+   switch(device){
+       case RETRO_DEVICE_JOYPAD:
+       case RETRO_DEVICE_ANALOG:
+           pad_type[port] = device;
+           break;
+       case RETRO_DEVICE_MTAP_PAD:
+           pad_type[port] = RETRO_DEVICE_JOYPAD;
+           break;
+       case RETRO_DEVICE_MTAP_3D:
+           pad_type[port] = RETRO_DEVICE_ANALOG;
+           break;
+   }
+   
+   bool mtap1 = (pad_type[0] == RETRO_DEVICE_MTAP_PAD) || (pad_type[0] == RETRO_DEVICE_MTAP_3D);
+   bool mtap2 = (pad_type[1] == RETRO_DEVICE_MTAP_PAD) || (pad_type[1] == RETRO_DEVICE_MTAP_3D);
+
+   if(!mtap1 && !mtap2)
+       players = 2;
+   else if (mtap1 && mtap2)
+       players = 8;
+   else 
+       players = 6;
+   
    if(PERCore) PERCore->Init();
-   //update_peripherals();
 }
 
 size_t retro_serialize_size(void) 
@@ -513,8 +542,6 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 
 static char full_path[256];
 static char bios_path[256];
-//static char save_path[256];
-//static char save_dir[256];
 
 static void check_variables(void)
 {
@@ -553,45 +580,11 @@ static void check_variables(void)
    {
       if (strcmp(var.value, "none") == 0 && addon_cart_type != CART_NONE)
          addon_cart_type = CART_NONE;
-      /*else if (strcmp(var.value, "action_replay") == 0 && addon_cart_type != CART_PAR)
-         addon_cart_type = CART_PAR;
-      else if (strcmp(var.value, "4M_save") == 0 && addon_cart_type != CART_BACKUPRAM4MBIT)
-         addon_cart_type = CART_BACKUPRAM4MBIT;
-      else if (strcmp(var.value, "8M_save") == 0 && addon_cart_type != CART_BACKUPRAM8MBIT)
-         addon_cart_type = CART_BACKUPRAM8MBIT;
-      else if (strcmp(var.value, "16M_save") == 0 && addon_cart_type != CART_BACKUPRAM16MBIT)
-         addon_cart_type = CART_BACKUPRAM16MBIT;
-      else if (strcmp(var.value, "32M_save") == 0 && addon_cart_type != CART_BACKUPRAM32MBIT)
-         addon_cart_type = CART_BACKUPRAM32MBIT;*/
       else if (strcmp(var.value, "1M_ram") == 0 && addon_cart_type != CART_DRAM8MBIT)
          addon_cart_type = CART_DRAM8MBIT;
       else if (strcmp(var.value, "4M_ram") == 0 && addon_cart_type != CART_DRAM32MBIT)
          addon_cart_type = CART_DRAM32MBIT;
-      /*else if (strcmp(var.value, "netlink") == 0 && addon_cart_type != CART_NETLINK)
-         addon_cart_type = CART_NETLINK;
-      else if (strcmp(var.value, "16M_rom") == 0 && addon_cart_type != CART_ROM16MBIT)
-         addon_cart_type = CART_ROM16MBIT;
-      else if (strcmp(var.value, "jap_modem") == 0 && addon_cart_type != CART_JAPMODEM)
-         addon_cart_type = CART_JAPMODEM;*/
-   }
-   
-   var.key = "yabause_multitap";
-   var.value = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-       unsigned old = players;
-       if (strcmp(var.value, "none") == 0)
-           players = 2;
-       else if (strcmp(var.value, "one") == 0)
-           players = 6;
-       else if (strcmp(var.value, "two") == 0)
-           //yabause supports 12, retroarch limited to 8?
-           players = 8;
-       
-       if (players != old && PERCore)
-           PERCore->Init();
-   }
-   
+   } 
 }
 
 static int does_file_exist(const char *filename)
@@ -634,7 +627,6 @@ void retro_init(void)
 	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
     
     if(PERCore) PERCore->Init();
-    //update_peripherals();
 	
     // Performance level for interpreter CPU core is 16
     unsigned level = 16;
@@ -766,8 +758,8 @@ void retro_run(void)
    
    input_poll_cb();
    
+   //YabauseExec(); runs from handle events
    if(PERCore) PERCore->HandleEvents();
-   //YabauseExec();
 
    for (unsigned i = 0; i < game_height * game_width; i++)
    {
