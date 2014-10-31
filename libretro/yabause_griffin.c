@@ -10,7 +10,6 @@
 #include "../yabause/src/titan/titan.c"
 #include "../yabause/src/vdp1.c"
 #include "../yabause/src/vdp2.c"
-#include "../yabause/src/vdp2debug.c"
 #include "../yabause/src/vidshared.c"
 #include "../yabause/src/vidsoft.c"
 #include "../yabause/src/yabause.c"

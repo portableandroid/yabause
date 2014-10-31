@@ -145,7 +145,6 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/japmodem.c \
 	$(SOURCE_DIR)/m68kc68k.c \
 	$(SOURCE_DIR)/m68kcore.c \
-	$(SOURCE_DIR)/m68kd.c \
 	$(SOURCE_DIR)/memory.c \
 	$(SOURCE_DIR)/movie.c \
 	$(SOURCE_DIR)/netlink.c \
@@ -166,7 +165,6 @@ else
 	$(THREAD_FILES) \
 	$(SOURCE_DIR)/vdp1.c \
 	$(SOURCE_DIR)/vdp2.c \
-	$(SOURCE_DIR)/vdp2debug.c \
 	$(SOURCE_DIR)/vidshared.c \
 	$(SOURCE_DIR)/vidsoft.c \
 	$(SOURCE_DIR)/yabause.c
