@@ -1,6 +1,7 @@
 DEBUG = 0
 DYNAREC = 0
 HAVE_THREADS = 1
+HAVE_GRIFFIN = 1
 
 ifeq ($(platform),)
 platform = unix
@@ -121,11 +122,13 @@ else
 	#DYNAREC = 2
 endif
 
+ifneq ($(HAVE_GRIFFIN), 1)
 ifeq ($(HAVE_PTHREADS),1)
 	HAVE_THREADS = 1
 	THREAD_FILES := thr-unix.c
 else
 	THREAD_FILES := $(SOURCE_DIR)/thr-dummy.c
+endif
 endif
 
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
@@ -157,16 +160,20 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/sh2int.c \
 	$(SOURCE_DIR)/sh2trace.c \
 	$(SOURCE_DIR)/smpc.c \
-	$(SOURCE_DIR)/snddummy.c \
+
+ifeq ($(HAVE_GRIFFIN), 1)
+	SOURCES_C += yabause_griffin.c
+else
+	SOURCES_C +=  $(SOURCE_DIR)/snddummy.c \
 	$(SOURCE_DIR)/sndwav.c \
 	$(THREAD_FILES) \
-	$(SOURCE_DIR)/titan/titan.c \
 	$(SOURCE_DIR)/vdp1.c \
 	$(SOURCE_DIR)/vdp2.c \
 	$(SOURCE_DIR)/vdp2debug.c \
 	$(SOURCE_DIR)/vidshared.c \
 	$(SOURCE_DIR)/vidsoft.c \
 	$(SOURCE_DIR)/yabause.c
+endif
 
 ifeq ($(HAVE_GL),1)
 SOURCES_C += \
@@ -175,7 +182,9 @@ SOURCES_C += \
 	$(SOURCE_DIR)/yglshader.c
 endif
 
+ifneq ($(HAVE_GRIFFIN), 1)
 LIBRETRO_SOURCES := libretro.c
+endif
 
 C68KEXEC_SOURCE := $(SOURCE_DIR)/c68k/c68kexec.c
 C68KEXEC_OBJECT := $(C68KEXEC_SOURCE:.c=.o)

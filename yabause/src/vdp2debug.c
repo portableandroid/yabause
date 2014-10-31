@@ -1635,7 +1635,7 @@ void Vdp2DebugStatsGeneral(char *outstring, int *isenabled)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static u32 FASTCALL DoNothing(UNUSED void *info, u32 pixel)
+static u32 FASTCALL Vdp2DebugDoNothing(UNUSED void *info, u32 pixel)
 {
    return pixel;
 }
