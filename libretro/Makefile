@@ -161,7 +161,6 @@ ifeq ($(HAVE_GRIFFIN), 1)
 	SOURCES_C += yabause_griffin.c
 else
 	SOURCES_C +=  $(SOURCE_DIR)/snddummy.c \
-	$(SOURCE_DIR)/sndwav.c \
 	$(THREAD_FILES) \
 	$(SOURCE_DIR)/vdp1.c \
 	$(SOURCE_DIR)/vdp2.c \

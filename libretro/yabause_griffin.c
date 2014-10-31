@@ -1,5 +1,4 @@
 #include "../yabause/src/snddummy.c"
-#include "../yabause/src/sndwav.c"
 
 #ifdef HAVE_THREADS
 #include "thr-unix.c"
