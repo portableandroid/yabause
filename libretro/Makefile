@@ -134,7 +134,6 @@ endif
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/bios.c \
 	$(SOURCE_DIR)/c68k/c68k.c \
-	$(SOURCE_DIR)/c68k/gen68k.c \
 	$(SOURCE_DIR)/cdbase.c \
 	$(SOURCE_DIR)/cheat.c \
 	$(SOURCE_DIR)/coffelf.c \
