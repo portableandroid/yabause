@@ -40,15 +40,15 @@
 #include <limits.h>
 
 #if defined WORDS_BIGENDIAN
-static INLINE u32 COLSAT2YAB16(int priority,u32 temp)            { return (priority | (temp & 0x7C00) << 1 | (temp & 0x3E0) << 14 | (temp & 0x1F) << 27); }
-static INLINE u32 COLSAT2YAB32(int priority,u32 temp)            { return (((temp & 0xFF) << 24) | ((temp & 0xFF00) << 8) | ((temp & 0xFF0000) >> 8) | priority); }
-static INLINE u32 COLSAT2YAB32_2(int priority,u32 temp1,u32 temp2)   { return (((temp2 & 0xFF) << 24) | ((temp2 & 0xFF00) << 8) | ((temp1 & 0xFF) << 8) | priority); }
-static INLINE u32 COLSATSTRIPPRIORITY(u32 pixel)              { return (pixel | 0xFF); }
+#define COLSAT2YAB16(priority, temp)            ((priority) | ((temp) & 0x7C00) << 1 | ((temp) & 0x3E0) << 14 | ((temp) & 0x1F) << 27)
+#define COLSAT2YAB32(priority, temp)            (((((temp) & 0xFF) << 24) | (((temp) & 0xFF00) << 8) | (((temp) & 0xFF0000) >> 8) | (priority)))
+#define COLSAT2YAB32_2(priority, temp1, temp2)   (((((temp2) & 0xFF) << 24) | (((temp2) & 0xFF00) << 8) | (((temp1) & 0xFF) << 8) | (priority)))
+#define COLSATSTRIPPRIORITY(pixel)              (((pixel) | 0xFF))
 #else
-static INLINE u32 COLSAT2YAB16(int priority,u32 temp) { return (priority << 24 | (temp & 0x1F) << 3 | (temp & 0x3E0) << 6 | (temp & 0x7C00) << 9); }
-static INLINE u32 COLSAT2YAB32(int priority, u32 temp) { return (priority << 24 | (temp & 0xFF0000) | (temp & 0xFF00) | (temp & 0xFF)); }
-static INLINE u32 COLSAT2YAB32_2(int priority,u32 temp1,u32 temp2)   { return (priority << 24 | ((temp1 & 0xFF) << 16) | (temp2 & 0xFF00) | (temp2 & 0xFF)); }
-static INLINE u32 COLSATSTRIPPRIORITY(u32 pixel) { return (0xFF000000 | pixel); }
+#define COLSAT2YAB16(priority, temp) (((priority) << 24 | ((temp) & 0x1F) << 3 | ((temp) & 0x3E0) << 6 | ((temp) & 0x7C00) << 9))
+#define COLSAT2YAB32(priority, temp) (((priority) << 24 | ((temp) & 0xFF0000) | ((temp) & 0xFF00) | ((temp) & 0xFF)))
+#define COLSAT2YAB32_2(priority, temp1, temp2)   (((priority) << 24 | (((temp1) & 0xFF) << 16) | ((temp2) & 0xFF00) | ((temp2) & 0xFF)))
+#define COLSATSTRIPPRIORITY(pixel) (0xFF000000 | (pixel))
 #endif
 
 #define COLOR_ADDt(b)		(b>0xFF?0xFF:(b<0?0:b))
