@@ -132,6 +132,31 @@ else ifeq ($(platform), wii)
 	ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -DGEKKO -DHW_RVL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__
 	STATIC_LINKING = 1
 
+# ARM
+else ifeq ($(platform), armv)
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	ENDIANNESS_DEFINES := -DLSB_FIRST
+	LDFLAGS += -lpthread
+	HAVE_PTHREADS = 1
+	ifneq (,$(findstring cortexa8,$(platform)))
+		FLAGS += -marm -mcpu=cortex-a8
+	else ifneq (,$(findstring cortexa9,$(platform)))
+		FLAGS += -marm -mcpu=cortex-a9
+	endif
+	FLAGS += -marm
+	ifneq (,$(findstring neon,$(platform)))
+		FLAGS += -mfpu=neon
+		HAVE_NEON = 1
+	endif
+	ifneq (,$(findstring softfloat,$(platform)))
+		FLAGS += -mfloat-abi=softfp
+	else ifneq (,$(findstring hardfloat,$(platform)))
+		FLAGS += -mfloat-abi=hard
+	endif
+	FLAGS += -DARM
+
 # Windows
 else
 	TARGET := $(TARGET_NAME)_libretro.dll
@@ -153,9 +178,9 @@ OBJECTS += $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
 all: $(TARGET)
 
 ifeq ($(DEBUG), 0)
-	FLAGS += -O3
+FLAGS += -O3
 else
-	FLAGS += -O0 -g
+FLAGS += -O0 -g
 endif
 
 LDFLAGS += $(fpic) $(SHARED)
@@ -170,9 +195,9 @@ CXXFLAGS += $(FLAGS)
 
 CFLAGS += $(FLAGS)
 ifeq ($(platform),qnx)
-	CFLAGS += -Wc,-std=c99
+CFLAGS += -Wc,-std=c99
 else
-	CFLAGS += -std=gnu99
+CFLAGS += -std=gnu99
 endif
 
 $(TARGET): $(OBJECTS)
