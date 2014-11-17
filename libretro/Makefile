@@ -37,7 +37,7 @@ TARGET_NAME = yabause
 CC_AS ?= $(CC)
 
 # Unix
-ifeq ($(platform), unix)
+ifneq (,$(findstring unix,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
@@ -47,7 +47,7 @@ ifeq ($(platform), unix)
 	HAVE_PTHREADS = 1
 
 # OS X
-else ifeq ($(platform), osx)
+else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC -mmacosx-version-min=10.6
 	SHARED := -dynamiclib
@@ -57,7 +57,7 @@ else ifeq ($(platform), osx)
 	HAVE_PTHREADS = 1
 
 # iOS
-else ifeq ($(platform), ios)
+else ifneq (,$(findstring ios,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_ios.dylib
 	fpic := -fPIC
 	SHARED := -dynamiclib
@@ -67,7 +67,7 @@ else ifeq ($(platform), ios)
 	CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
 
 # QNX
-else ifeq ($(platform), qnx)
+else ifneq (,$(findstring qnx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_qnx.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--version-script=libretro/link.T
@@ -78,7 +78,7 @@ else ifeq ($(platform), qnx)
 	ENDIANNESS_DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=softfp -DLSB_FIRST
 
 # PS3
-else ifeq ($(platform), ps3)
+else ifneq (,$(findstring ps3,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_ps3.a
 	CC = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-gcc.exe
 	CXX = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-g++.exe
@@ -87,7 +87,7 @@ else ifeq ($(platform), ps3)
 	STATIC_LINKING = 1
 
 # sncps3
-else ifeq ($(platform), sncps3)
+else ifneq (,$(findstring sncps3,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_ps3.a
 	CC = $(CELL_SDK)/host-win32/sn/bin/ps3ppusnc.exe
 	CXX = $(CELL_SDK)/host-win32/sn/bin/ps3ppusnc.exe
@@ -96,7 +96,7 @@ else ifeq ($(platform), sncps3)
 	STATIC_LINKING = 1
 
 # Lightweight PS3 Homebrew SDK
-else ifeq ($(platform), psl1ght)
+else ifneq (,$(findstring psl1ght,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_psl1ght.a
 	CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
 	CC = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
@@ -105,7 +105,7 @@ else ifeq ($(platform), psl1ght)
 	STATIC_LINKING = 1
 
 # PSP
-else ifeq ($(platform), psp1)
+else ifneq (,$(findstring psp1,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_psp1.a
 	CC = psp-gcc$(EXE_EXT)
 	CC_AS = $(CC)
@@ -115,7 +115,7 @@ else ifeq ($(platform), psp1)
 	STATIC_LINKING = 1
 
 # Nintendo Game Cube
-else ifeq ($(platform), ngc)
+else ifneq (,$(findstring ngc,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_ngc.a
 	CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
 	CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
@@ -124,7 +124,7 @@ else ifeq ($(platform), ngc)
 	STATIC_LINKING = 1
 
 # Nintendo Wii
-else ifeq ($(platform), wii)
+else ifneq (,$(findstring wii,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_wii.a
 	CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
 	CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
@@ -133,7 +133,7 @@ else ifeq ($(platform), wii)
 	STATIC_LINKING = 1
 
 # ARM
-else ifeq ($(platform), armv)
+else ifneq (,$(findstring armv,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
