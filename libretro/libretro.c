@@ -535,13 +535,18 @@ bool retro_unserialize(const void *data, size_t size)
 }
 
 void retro_cheat_reset(void)
-{}
+{
+   CheatClearCodes();
+}
 
 void retro_cheat_set(unsigned index, bool enabled, const char *code)
 {
    (void)index;
    (void)enabled;
    (void)code;
+
+   if (CheatAddARCode(code) == 0)
+      return;
 }
 
 static char full_path[256];
