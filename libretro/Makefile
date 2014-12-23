@@ -177,10 +177,10 @@ OBJECTS += $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
 
 all: $(TARGET)
 
-ifeq ($(DEBUG), 0)
-FLAGS += -O3
-else
+ifeq ($(DEBUG), 1)
 FLAGS += -O0 -g
+else
+FLAGS += -O2 -DNDEBUG
 endif
 
 LDFLAGS += $(fpic) $(SHARED)
