@@ -56,8 +56,21 @@ else ifneq (,$(findstring osx,$(platform)))
 	LDFLAGS += -lpthread
 	HAVE_PTHREADS = 1
 
-# iOS
+else ifneq (,$(findstring theos_ios,$(platform)))
+	# Theos iOS
+	DEPLOYMENT_IOSVERSION = 5.0
+	TARGET = iphone:latest:$(DEPLOYMENT_IOSVERSION)
+	ARCHS = armv7 armv7s
+	TARGET_IPHONEOS_DEPLOYMENT_VERSION=$(DEPLOYMENT_IOSVERSION)
+	THEOS_BUILD_DIR := objs
+	include $(THEOS)/makefiles/common.mk
+
+LIBRARY_NAME = $(TARGET_NAME)_libretro_ios
+
+ENDIANNESS_DEFINES = -DLSB_FIRST
+
 else ifneq (,$(findstring ios,$(platform)))
+	# iOS
 	TARGET := $(TARGET_NAME)_libretro_ios.dylib
 	fpic := -fPIC
 	SHARED := -dynamiclib
@@ -175,7 +188,6 @@ include Makefile.common
 SOURCES += $(LIBRETRO_SOURCES) $(YABAUSE_SOURCES)
 OBJECTS += $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
 
-all: $(TARGET)
 
 ifeq ($(DEBUG), 1)
 FLAGS += -O0 -g
@@ -200,6 +212,14 @@ else
 CFLAGS += -std=gnu99
 endif
 
+ifeq ($(platform), theos_ios)
+COMMON_FLAGS := -DIOS $(COMMON_DEFINES) $(INCFLAGS) -I$(THEOS_INCLUDE_PATH) -Wno-error
+$(LIBRARY_NAME)_CFLAGS += $(CFLAGS) $(COMMON_FLAGS)
+$(LIBRARY_NAME)_CXXFLAGS += $(CXXFLAGS) $(COMMON_FLAGS)
+${LIBRARY_NAME}_FILES = $(SOURCES_CXX) $(SOURCES_C) $(SOURCE_DIR)/c68k/c68kexec.c
+include $(THEOS_MAKE_PATH)/library.mk
+else
+all: $(TARGET)
 $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
@@ -226,3 +246,4 @@ clean:
 	rm -f $(TARGET) $(OBJECTS)
 
 .PHONY: clean
+endif
