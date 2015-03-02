@@ -46,6 +46,15 @@ ifneq (,$(findstring unix,$(platform)))
 	LDFLAGS += -lpthread
 	HAVE_PTHREADS = 1
 
+else ifneq (,$(findstring linux-portable,$(platform)))
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC -nostdlib
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	ENDIANNESS_DEFINES := -DLSB_FIRST
+	#DYNAREC = 2
+	LDFLAGS += -L. -lmusl
+	HAVE_PTHREADS = 1
+
 # OS X
 else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
