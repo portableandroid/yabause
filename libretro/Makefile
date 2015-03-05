@@ -52,7 +52,6 @@ else ifneq (,$(findstring linux-portable,$(platform)))
 	SHARED := -shared -Wl,--version-script=link.T
 	ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
-	LDFLAGS += -L. -lmusl
 	HAVE_PTHREADS = 1
 
 # OS X
