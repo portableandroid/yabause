@@ -60,6 +60,9 @@ else ifneq (,$(findstring osx,$(platform)))
 	fpic := -fPIC -mmacosx-version-min=10.6
 	SHARED := -dynamiclib
 	ENDIANNESS_DEFINES := -DLSB_FIRST
+ifeq ($(arch),ppc)
+	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
+endif
 	#DYNAREC = 2
 	LDFLAGS += -lpthread
 	HAVE_PTHREADS = 1
