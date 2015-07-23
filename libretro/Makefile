@@ -41,7 +41,6 @@ ifneq (,$(findstring unix,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
 	LDFLAGS += -lpthread
 	HAVE_PTHREADS = 1
@@ -50,7 +49,6 @@ else ifneq (,$(findstring linux-portable,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC -nostdlib
 	SHARED := -shared -Wl,--version-script=link.T
-	ENDIANNESS_DEFINES := -DLSB_FIRST
 	#DYNAREC = 2
 	HAVE_PTHREADS = 1
 
@@ -59,7 +57,6 @@ else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC -mmacosx-version-min=10.6
 	SHARED := -dynamiclib
-	ENDIANNESS_DEFINES := -DLSB_FIRST
 ifeq ($(arch),ppc)
 	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 endif
@@ -78,14 +75,11 @@ else ifneq (,$(findstring theos_ios,$(platform)))
 
 LIBRARY_NAME = $(TARGET_NAME)_libretro_ios
 
-ENDIANNESS_DEFINES = -DLSB_FIRST
-
 else ifneq (,$(findstring ios,$(platform)))
 	# iOS
 	TARGET := $(TARGET_NAME)_libretro_ios.dylib
 	fpic := -fPIC
 	SHARED := -dynamiclib
-	ENDIANNESS_DEFINES := -DLSB_FIRST
 	CC = clang -arch armv7 -isysroot $(IOSSDK)
 	CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
 	CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
@@ -99,7 +93,7 @@ else ifneq (,$(findstring qnx,$(platform)))
 	CC_AS = $(CC)
 	CXX = QCC -Vgcc_ntoarmv7le
 	AR = qcc -Vgcc_ntoarmv7le
-	ENDIANNESS_DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=softfp -DLSB_FIRST
+	ENDIANNESS_DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=softfp
 
 # PS3
 else ifneq (,$(findstring ps3,$(platform)))
@@ -135,7 +129,7 @@ else ifneq (,$(findstring psp1,$(platform)))
 	CC_AS = $(CC)
 	CXX = psp-g++$(EXE_EXT)
 	AR = psp-ar$(EXE_EXT)
-	ENDIANNESS_DEFINES += -DPSP -G0 -DLSB_FIRST
+	ENDIANNESS_DEFINES += -DPSP -G0 
 	STATIC_LINKING = 1
 
 # Nintendo Game Cube
@@ -161,7 +155,6 @@ else ifneq (,$(findstring armv,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	ENDIANNESS_DEFINES := -DLSB_FIRST
 	LDFLAGS += -lpthread
 	HAVE_PTHREADS = 1
 	ifneq (,$(findstring cortexa8,$(platform)))
@@ -188,7 +181,6 @@ else
 	CXX = g++
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
-	ENDIANNESS_DEFINES := -DLSB_FIRST
 	FLAGS += -DHAVE_WFOPEN
 	#DYNAREC = 2
 
