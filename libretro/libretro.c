@@ -834,7 +834,7 @@ void retro_reset(void)
    YabauseSetDecilineMode(1);
 }
 
-static INLINE uint16_t unknown_to_0rgb1555(uint32_t px)
+static INLINE uint16_t to_rgb565(uint32_t px)
 {
    return (((px & 0xF80000) >> 19) | ((px & 0x00FC00) >> 5) |  ((px & 0x0000F8) << 8));
 }
@@ -858,7 +858,7 @@ void retro_run(void)
       PERCore->HandleEvents();
 
    for (i = 0; i < game_height * game_width; i++)
-      *dst++ = unknown_to_0rgb1555(*src++);
+      *dst++ = to_rgb565(*src++);
 
 	video_cb(vid_buf, game_width, game_height, game_width * 2);
 }
