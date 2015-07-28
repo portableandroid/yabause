@@ -38,7 +38,7 @@ else
 	$(SOURCE_DIR)/vdp2.c \
 	$(SOURCE_DIR)/vidshared.c \
 	$(SOURCE_DIR)/vidsoft.c \
-	$(SOURCE_DIR)/tools/titan/titan.c \
+	$(SOURCE_DIR)/titan/titan.c \
 	$(SOURCE_DIR)/yabause.c
 endif
 
