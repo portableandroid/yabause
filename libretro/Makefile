@@ -1,7 +1,7 @@
 DEBUG = 0
 DYNAREC = 0
 HAVE_THREADS = 1
-HAVE_GRIFFIN = 1
+HAVE_GRIFFIN = 0
 
 ifeq ($(platform),)
 	platform = unix
@@ -29,9 +29,7 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
 	system_platform = win
 endif
 
-YABAUSE_DIR  := ../yabause
-SOURCE_DIR	:= $(YABAUSE_DIR)/src
-LIBRETRO_DIR := ./
+CORE_DIR := .
 
 TARGET_NAME = yabause
 CC_AS ?= $(CC)
@@ -188,9 +186,7 @@ endif
 
 include Makefile.common
 
-SOURCES += $(LIBRETRO_SOURCES) $(YABAUSE_SOURCES)
-OBJECTS += $(SOURCES:.c=.o) $(SOURCES_C:.c=.o) $(C68KEXEC_OBJECT)
-
+OBJECTS += $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o) $(C68KEXEC_OBJECT)
 
 ifeq ($(DEBUG), 1)
 FLAGS += -O0 -g
@@ -200,7 +196,6 @@ endif
 
 LDFLAGS += $(fpic) $(SHARED)
 FLAGS += $(fpic)
-INCFLAGS += -I. -I../yabause -I../yabause/src
 
 WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) \

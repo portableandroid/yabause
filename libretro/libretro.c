@@ -21,6 +21,7 @@
 #include "cdbase.h"
 #include "yabause.h"
 #include "yui.h"
+#include "cheat.h"
 
 //#include "m68kc68k.h"
 #include "cs0.h"
@@ -108,130 +109,128 @@ static bool multitap[2] = {0};
 
 int PERLIBRETROInit(void)
 {
-    PortData_struct* portdata = 0;
-    u32 i = 0;
-    u8 j = 0;
-    void *controller;
-    
-    if(!multitap[0] && !multitap[1])
-        players = 2;
-    else if(multitap[0] && multitap[1])
-        players = 8;
-    else
-        players = 6;
-    
-    PerPortReset();
-    
-    for(i = 0; i < players; i++) {
-        //Ports can handle 6 peripherals, fill port 1 first.
-        if(players > 2 && i < 6 || i == 0)
-            portdata = &PORTDATA1;
-        else
-            portdata = &PORTDATA2;
-        switch(pad_type[i]){
-            case RETRO_DEVICE_NONE:
-                controller = NULL;
-                break;
-            case RETRO_DEVICE_ANALOG:
-                controller = (void*)Per3DPadAdd(portdata);
-                for(j = PERPAD_UP; j <= PERPAD_Z; j++) {
-                    PerSetKey((i << 8) + j, j, controller);
-                }
-                for(j = PERANALOG_AXIS1; j <= PERANALOG_AXIS7; j++) {
-                    PerSetKey((i << 8) + j, j, controller);
-                }
-                break;
-            case RETRO_DEVICE_JOYPAD:
-            default:
-                controller = (void*)PerPadAdd(portdata);
-                for(j = PERPAD_UP; j <= PERPAD_Z; j++) {
-                    PerSetKey((i << 8) + j, j, controller);
-                }
-                break;
-        }
-    }
-    return 0;
+   void *controller;
+   uint32_t i, j;
+   PortData_struct* portdata = NULL;
+
+   players = 6;
+
+   if(!multitap[0] && !multitap[1])
+      players = 2;
+   else if(multitap[0] && multitap[1])
+      players = 8;
+
+   PerPortReset();
+
+   for(i = 0; i < players; i++)
+   {
+      //Ports can handle 6 peripherals, fill port 1 first.
+      if(players > 2 && i < 6 || i == 0)
+         portdata = &PORTDATA1;
+      else
+         portdata = &PORTDATA2;
+
+      switch(pad_type[i])
+      {
+         case RETRO_DEVICE_NONE:
+            controller = NULL;
+            break;
+         case RETRO_DEVICE_ANALOG:
+            controller = (void*)Per3DPadAdd(portdata);
+            for(j = PERPAD_UP; j <= PERPAD_Z; j++)
+               PerSetKey((i << 8) + j, j, controller);
+            for(j = PERANALOG_AXIS1; j <= PERANALOG_AXIS7; j++)
+               PerSetKey((i << 8) + j, j, controller);
+            break;
+         case RETRO_DEVICE_JOYPAD:
+         default:
+            controller = (void*)PerPadAdd(portdata);
+            for(j = PERPAD_UP; j <= PERPAD_Z; j++)
+               PerSetKey((i << 8) + j, j, controller);
+            break;
+      }
+   }
+   return 0;
 }
 
 static int PERLIBRETROHandleEvents(void)
 {
-   int i = 0;
-   int analog_left_x = 0;
-   int analog_left_y = 0;
-   
-   for(i = 0; i < players; i++) {
-       
-      analog_left_x = 0;
-      analog_left_y = 0;
-      
-      switch(pad_type[i]){
+   unsigned i = 0;
+
+   for(i = 0; i < players; i++)
+   {
+      int analog_left_x = 0;
+      int analog_left_y = 0;
+
+      switch(pad_type[i])
+      {
          case RETRO_DEVICE_ANALOG:
-         analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG, 
-            RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
-         
-         PerAxisValue((i << 8) + PERANALOG_AXIS1, (u8)((analog_left_x + 0x8000) >> 8));
+            analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG, 
+                  RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
 
-         analog_left_y = input_state_cb(i, RETRO_DEVICE_ANALOG,
-            RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+            PerAxisValue((i << 8) + PERANALOG_AXIS1, (u8)((analog_left_x + 0x8000) >> 8));
 
-         PerAxisValue((i << 8) + PERANALOG_AXIS2, (u8)((analog_left_y + 0x8000) >> 8));
+            analog_left_y = input_state_cb(i, RETRO_DEVICE_ANALOG,
+                  RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+
+            PerAxisValue((i << 8) + PERANALOG_AXIS2, (u8)((analog_left_y + 0x8000) >> 8));
          case RETRO_DEVICE_JOYPAD:
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
-            PerKeyDown((i << 8) + PERPAD_UP);
-         else
-            PerKeyUp((i << 8) + PERPAD_UP);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
-            PerKeyDown((i << 8) + PERPAD_DOWN);
-         else
-            PerKeyUp((i << 8) + PERPAD_DOWN);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
-            PerKeyDown((i << 8) + PERPAD_LEFT);
-         else
-            PerKeyUp((i << 8) + PERPAD_LEFT);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
-            PerKeyDown((i << 8) + PERPAD_RIGHT);
-         else
-            PerKeyUp((i << 8) + PERPAD_RIGHT);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
-            PerKeyDown((i << 8) + PERPAD_A);
-         else
-            PerKeyUp((i << 8) + PERPAD_A);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
-            PerKeyDown((i << 8) + PERPAD_B);
-         else
-            PerKeyUp((i << 8) + PERPAD_B);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
-            PerKeyDown((i << 8) + PERPAD_C);
-         else
-            PerKeyUp((i << 8) + PERPAD_C);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X))
-            PerKeyDown((i << 8) + PERPAD_X);
-         else
-            PerKeyUp((i << 8) + PERPAD_X);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
-            PerKeyDown((i << 8) + PERPAD_Y);
-         else
-            PerKeyUp((i << 8) + PERPAD_Y);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
-            PerKeyDown((i << 8) + PERPAD_Z);
-         else
-            PerKeyUp((i << 8) + PERPAD_Z);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START))
-            PerKeyDown((i << 8) + PERPAD_START);
-         else
-            PerKeyUp((i << 8) + PERPAD_START);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
-            PerKeyDown((i << 8) + PERPAD_LEFT_TRIGGER);
-         else
-            PerKeyUp((i << 8) + PERPAD_LEFT_TRIGGER);
-         if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
-            PerKeyDown((i << 8) + PERPAD_RIGHT_TRIGGER);
-         else
-            PerKeyUp((i << 8) + PERPAD_RIGHT_TRIGGER);
-         break;
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
+               PerKeyDown((i << 8) + PERPAD_UP);
+            else
+               PerKeyUp((i << 8) + PERPAD_UP);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
+               PerKeyDown((i << 8) + PERPAD_DOWN);
+            else
+               PerKeyUp((i << 8) + PERPAD_DOWN);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
+               PerKeyDown((i << 8) + PERPAD_LEFT);
+            else
+               PerKeyUp((i << 8) + PERPAD_LEFT);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
+               PerKeyDown((i << 8) + PERPAD_RIGHT);
+            else
+               PerKeyUp((i << 8) + PERPAD_RIGHT);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
+               PerKeyDown((i << 8) + PERPAD_A);
+            else
+               PerKeyUp((i << 8) + PERPAD_A);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
+               PerKeyDown((i << 8) + PERPAD_B);
+            else
+               PerKeyUp((i << 8) + PERPAD_B);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
+               PerKeyDown((i << 8) + PERPAD_C);
+            else
+               PerKeyUp((i << 8) + PERPAD_C);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X))
+               PerKeyDown((i << 8) + PERPAD_X);
+            else
+               PerKeyUp((i << 8) + PERPAD_X);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
+               PerKeyDown((i << 8) + PERPAD_Y);
+            else
+               PerKeyUp((i << 8) + PERPAD_Y);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
+               PerKeyDown((i << 8) + PERPAD_Z);
+            else
+               PerKeyUp((i << 8) + PERPAD_Z);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START))
+               PerKeyDown((i << 8) + PERPAD_START);
+            else
+               PerKeyUp((i << 8) + PERPAD_START);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
+               PerKeyDown((i << 8) + PERPAD_LEFT_TRIGGER);
+            else
+               PerKeyUp((i << 8) + PERPAD_LEFT_TRIGGER);
+            if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
+               PerKeyDown((i << 8) + PERPAD_RIGHT_TRIGGER);
+            else
+               PerKeyUp((i << 8) + PERPAD_RIGHT_TRIGGER);
+            break;
 
          default:
-         break;
+            break;
       }
    }
    
@@ -240,22 +239,13 @@ static int PERLIBRETROHandleEvents(void)
    return 0;
 }
 
-void PERLIBRETRODeInit(void) {
-   /* Nothing */
-}
+void PERLIBRETRODeInit(void) {}
 
-void PERLIBRETRONothing(void) {
-   /* Nothing */
-}
+void PERLIBRETRONothing(void) {}
 
-u32 PERLIBRETROScan(u32 flags) {
-   /* Nothing */
-   return 0;
-}
+u32 PERLIBRETROScan(u32 flags) { return 0;}
 
-void PERLIBRETROKeyName(u32 key, char *name, int size) {
-   /* Nothing */
-}
+void PERLIBRETROKeyName(u32 key, char *name, int size) {}
 
 PerInterface_struct PERLIBRETROJoy = {
     PERCORE_LIBRETRO,
@@ -271,37 +261,18 @@ PerInterface_struct PERLIBRETROJoy = {
 
 // SNDLIBRETRO
 #define SNDCORE_LIBRETRO   11
-#define SAMPLERATE 44100
-#define SAMPLEFRAME 735
-#define BUFFER_LEN 65536
+#define SAMPLERATE         44100
+#define SAMPLEFRAME        735
+#define BUFFER_LEN         65536
 
 static uint32_t video_freq;
 static uint32_t audio_size;
 
-static int SNDLIBRETROInit(void);
-static void SNDLIBRETRODeInit(void);
-static int SNDLIBRETROReset(void);
-static int SNDLIBRETROChangeVideoFormat(int vertfreq);
-static void SNDLIBRETROUpdateAudio(u32 *leftchanbuffer, u32 *rightchanbuffer, u32 num_samples);
-static u32 SNDLIBRETROGetAudioSpace(void);
-static void SNDLIBRETROMuteAudio(void);
-static void SNDLIBRETROUnMuteAudio(void);
-static void SNDLIBRETROSetVolume(int volume);
+static int SNDLIBRETROInit(void) { return 0; }
 
-static int SNDLIBRETROInit(void)
-{
-	//SNDLIBRETROChangeVideoFormat(60);
-    return 0;
-}
+static void SNDLIBRETRODeInit(void) {}
 
-static void SNDLIBRETRODeInit(void)
-{
-}
-
-static int SNDLIBRETROReset(void)
-{
-    return 0;
-}
+static int SNDLIBRETROReset(void) { return 0; }
 
 static int SNDLIBRETROChangeVideoFormat(int vertfreq)
 {
@@ -310,7 +281,8 @@ static int SNDLIBRETROChangeVideoFormat(int vertfreq)
     return 0;
 }
 
-static void sdlConvert32uto16s(s32 *srcL, s32 *srcR, s16 *dst, u32 len) {
+static void sdlConvert32uto16s(int32_t *srcL, int32_t *srcR, int16_t *dst, size_t len)
+{
    u32 i;
 
    for (i = 0; i < len; i++)
@@ -340,28 +312,19 @@ static void sdlConvert32uto16s(s32 *srcL, s32 *srcR, s16 *dst, u32 len) {
 static void SNDLIBRETROUpdateAudio(u32 *leftchanbuffer, u32 *rightchanbuffer, u32 num_samples)
 {
    s16 sound_buf[4096];
-   sdlConvert32uto16s((s32*)leftchanbuffer, (s32*)rightchanbuffer, sound_buf, num_samples);
+   sdlConvert32uto16s((int32_t*)leftchanbuffer, (int32_t*)rightchanbuffer, sound_buf, num_samples);
    audio_batch_cb(sound_buf, num_samples);
 
    audio_size -= num_samples;
 }
 
-static u32 SNDLIBRETROGetAudioSpace(void)
-{
-	return audio_size;
-}
+static u32 SNDLIBRETROGetAudioSpace(void) { return audio_size; }
 
-void SNDLIBRETROMuteAudio()
-{
-}
+void SNDLIBRETROMuteAudio(void) {}
 
-void SNDLIBRETROUnMuteAudio()
-{
-}
+void SNDLIBRETROUnMuteAudio(void) {}
 
-void SNDLIBRETROSetVolume(int volume)
-{
-}
+void SNDLIBRETROSetVolume(int volume) {}
 
 SoundInterface_struct SNDLIBRETRO = {
     SNDCORE_LIBRETRO,
@@ -436,16 +399,18 @@ int YuiSetVideoMode(int width, int height, int bpp, int fullscreen)
 
 void updateCurrentResolution(void)
 {
-    int current_width = 320;
-    int current_height = 240;
+   int current_width  = 320;
+   int current_height = 240;
 
-    // Test if VIDCore valid AND NOT the Dummy Interface (or at least VIDCore->id != 0). 
-    // Avoid calling GetGlSize if Dummy/id=0 is selected
-    if (VIDCore && VIDCore->id) 
-       VIDCore->GetGlSize(&current_width, &current_height);
+   /* Test if VIDCore valid AND NOT the 
+    * Dummy Interface (or at least VIDCore->id != 0). 
+    * Avoid calling GetGlSize if Dummy/ID = 0 is selected
+    */
+   if (VIDCore && VIDCore->id) 
+      VIDCore->GetGlSize(&current_width, &current_height);
 
-    game_width = current_width;
-    game_height = current_height;
+   game_width = current_width;
+   game_height = current_height;
 }
 
 void YuiSwapBuffers(void) 
@@ -461,76 +426,84 @@ static struct retro_system_av_info g_av_info;
 
 void retro_get_system_info(struct retro_system_info *info)
 {
-    memset(info, 0, sizeof(*info));
-	info->library_name = "Yabause";
-	info->library_version = "v0.9.14";
-	info->need_fullpath = true;
-	info->valid_extensions = "bin|cue|iso";
+   memset(info, 0, sizeof(*info));
+   info->library_name     = "Yabause";
+   info->library_version  = "v0.9.14";
+   info->need_fullpath    = true;
+   info->valid_extensions = "bin|cue|iso";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-    memset(info, 0, sizeof(*info));
-    // Just assume NTSC for now. TODO: Verify FPS.
-    info->timing.fps            = 60;
-    info->timing.sample_rate    = 44100;
-    info->geometry.base_width   = game_width;
-    info->geometry.base_height  = game_height;
-    info->geometry.max_width    = 704;
-    info->geometry.max_height   = 512;
-    info->geometry.aspect_ratio = 4.0 / 3.0;
+   memset(info, 0, sizeof(*info));
+
+   info->timing.fps            = (retro_get_region() == RETRO_REGION_NTSC) ? 60 : 50;
+   info->timing.sample_rate    = 44100;
+   info->geometry.base_width   = game_width;
+   info->geometry.base_height  = game_height;
+   info->geometry.max_width    = 704;
+   info->geometry.max_height   = 512;
+   info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
-{   
-   switch(device){
-       case RETRO_DEVICE_JOYPAD:
-       case RETRO_DEVICE_ANALOG:
-           pad_type[port] = device;
-           if(port < 2)
-               multitap[port] = false;
-           break;
-       //assumes only ports 1 and 2 can report as multitap
-       case RETRO_DEVICE_MTAP_PAD:
-           pad_type[port] = RETRO_DEVICE_JOYPAD;
-           if(port < 2)
-              multitap[port] = true;
-           break;
-       case RETRO_DEVICE_MTAP_3D:
-           pad_type[port] = RETRO_DEVICE_ANALOG;
-           if(port < 2)
-              multitap[port] = true;
-           break;
+{
+   switch(device)
+   {
+      case RETRO_DEVICE_JOYPAD:
+      case RETRO_DEVICE_ANALOG:
+         pad_type[port] = device;
+         if(port < 2)
+            multitap[port] = false;
+         break;
+         /* Assumes only ports 1 and 2 can report as multitap */
+      case RETRO_DEVICE_MTAP_PAD:
+         pad_type[port] = RETRO_DEVICE_JOYPAD;
+         if(port < 2)
+            multitap[port] = true;
+         break;
+      case RETRO_DEVICE_MTAP_3D:
+         pad_type[port] = RETRO_DEVICE_ANALOG;
+         if(port < 2)
+            multitap[port] = true;
+         break;
    }
-   
-   if(PERCore) PERCore->Init();
+
+   if(PERCore)
+      PERCore->Init();
 }
 
 size_t retro_serialize_size(void) 
-{ 
-	//return STATE_SIZE;
-	return 0;
+{
+#if 0
+   return STATE_SIZE;
+#endif
+   return 0;
 }
 
 bool retro_serialize(void *data, size_t size)
-{ 
-   //if (size != STATE_SIZE)
-   //   return FALSE;
+{
+#if 0
+   if (size != STATE_SIZE)
+      return FALSE;
+#endif
 
-	ScspMuteAudio(SCSP_MUTE_SYSTEM);
-	int error = YabSaveState((const char*)data);
-	ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
+   ScspMuteAudio(SCSP_MUTE_SYSTEM);
+   int error = YabSaveState((const char*)data);
+   ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
    return !error;
 }
 
 bool retro_unserialize(const void *data, size_t size)
 {
-   //if (size != STATE_SIZE)
-   //   return FALSE;
+#if 0
+   if (size != STATE_SIZE)
+      return FALSE;
+#endif
 
-	ScspMuteAudio(SCSP_MUTE_SYSTEM);
-	int error = YabLoadState((const char*)data);
-	ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
+   ScspMuteAudio(SCSP_MUTE_SYSTEM);
+   int error = YabLoadState((const char*)data);
+   ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
    return !error;
 }
 
@@ -582,7 +555,7 @@ static void check_variables(void)
       else if (strcmp(var.value, "enabled") == 0 && !hle_bios_force)
          hle_bios_force = true;
    }
-   
+
    var.key = "yabause_addon_cart";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -606,21 +579,27 @@ static int does_file_exist(const char *filename)
 void retro_init(void)
 {
    struct retro_log_callback log;
+   const char *dir = NULL;
+
+   log_cb                   = NULL;
+   perf_get_cpu_features_cb = NULL;
+   game_width               = 320;
+   game_height              = 240;
+   /* Performance level for interpreter CPU core is 16 */
+   unsigned level           = 16;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
       log_cb = log.log;
-   else
-      log_cb = NULL;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb))
       perf_get_cpu_features_cb = perf_cb.get_cpu_features;
-   else
-      perf_get_cpu_features_cb = NULL;
 
-	game_width = 320;
-	game_height = 240;
-	
-   const char *dir = NULL;
+#if 0
+   enum retro_pixel_format rgb565 = RETRO_PIXEL_FORMAT_RGB565;
+   if(environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &rgb565))
+      log_cb(RETRO_LOG_INFO, "Frontend supports RGB565 - will use that instead of XRGB1555.\n");
+#endif
+
    environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir);
 
    if (dir)
@@ -632,21 +611,18 @@ void retro_init(void)
 #endif
       snprintf(bios_path, sizeof(bios_path), "%s%c%s", dir, slash, "saturn_bios.bin");
    }
-   
-	vid_buf = (u16 *)calloc(sizeof(u16), 704 * 512);
-    
-    if(PERCore) PERCore->Init();
-	
-    // Performance level for interpreter CPU core is 16
-    unsigned level = 16;
-    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
+
+   vid_buf = (uint16_t*)calloc(sizeof(uint16_t), 704 * 512);
+
+   if(PERCore)
+      PERCore->Init();
+
+   environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 }
+
 bool retro_load_game(const struct retro_game_info *info)
 {
-   check_variables();
-
-   snprintf(full_path, sizeof(full_path), "%s", info->path);
-
+   int ret;
    struct retro_input_descriptor desc[] = {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
@@ -778,46 +754,43 @@ bool retro_load_game(const struct retro_game_info *info)
 
       { 0 },
    };
+   check_variables();
+
+   snprintf(full_path, sizeof(full_path), "%s", info->path);
 
    environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
    
-   yinit.cdcoretype = CDCORE_ISO;
-
-   yinit.cdpath = full_path;
-   // Emulate BIOS
-   yinit.biospath = (bios_path[0] != '\0' && does_file_exist(bios_path) && !hle_bios_force) ? bios_path : NULL;
-
-   yinit.percoretype = PERCORE_LIBRETRO;
+   yinit.cdcoretype      = CDCORE_ISO;
+   yinit.cdpath          = full_path;
+   /* Emulate BIOS */
+   yinit.biospath        = (bios_path[0] != '\0' && does_file_exist(bios_path) && !hle_bios_force) ? bios_path : NULL;
+   yinit.percoretype     = PERCORE_LIBRETRO;
 #ifdef SH2_DYNAREC
-   yinit.sh2coretype = 2;
+   yinit.sh2coretype     = 2;
 #else
-   yinit.sh2coretype = SH2CORE_INTERPRETER;
+   yinit.sh2coretype     = SH2CORE_INTERPRETER;
 #endif
-
-   yinit.vidcoretype = VIDCORE_SOFT;
-
-   yinit.sndcoretype = SNDCORE_LIBRETRO;
-   yinit.m68kcoretype = M68KCORE_C68K;
-   yinit.carttype = addon_cart_type;
-   yinit.regionid = REGION_AUTODETECT;
-   yinit.buppath = NULL;
-   yinit.mpegpath = NULL;
-
+   yinit.vidcoretype     = VIDCORE_SOFT;
+   yinit.sndcoretype     = SNDCORE_LIBRETRO;
+   yinit.m68kcoretype    = M68KCORE_C68K;
+   yinit.carttype        = addon_cart_type;
+   yinit.regionid        = REGION_AUTODETECT;
+   yinit.buppath         = NULL;
+   yinit.mpegpath        = NULL;
    yinit.videoformattype = VIDEOFORMATTYPE_NTSC;
-
-   yinit.frameskip = frameskip_enable;
-   yinit.clocksync = 0;
-   yinit.basetime = 0;
+   yinit.frameskip       = frameskip_enable;
+   yinit.clocksync       = 0;
+   yinit.basetime        = 0;
 #ifdef HAVE_THREADS
-   yinit.usethreads = 1;
+   yinit.usethreads      = 1;
 #else
-   yinit.usethreads = 0;
+   yinit.usethreads      = 0;
 #endif
 
-   int result = YabauseInit(&yinit);
+   ret = YabauseInit(&yinit);
    YabauseSetDecilineMode(1);
 
-   return !result;
+   return !ret;
 }
 
 bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info)
@@ -845,41 +818,35 @@ unsigned retro_api_version(void)
 
 void *retro_get_memory_data(unsigned id)
 {
-   uint8_t *data;
-
    switch (id)
    {
       case RETRO_MEMORY_SAVE_RAM:
-         data = BupRam;
-         break;
+         return BupRam;
       default:
-         data = NULL;
          break;
    }
-   return data;
+
+   return NULL;
 }
 
 size_t retro_get_memory_size(unsigned id)
 {
-   unsigned size;
-
    switch (id)
    {
       case RETRO_MEMORY_SAVE_RAM:
-         size = 0x10000;
-         break;
+         return 0x10000;
       default:
-         size = 0;
          break;
    }
 
-   return size;
+   return 0;
 }
 
 void retro_deinit(void)
 {
    if (vid_buf)
       free(vid_buf);
+   vid_buf = NULL;
 }
 
 void retro_reset(void)
@@ -889,9 +856,17 @@ void retro_reset(void)
    YabauseSetDecilineMode(1);
 }
 
+static INLINE uint16_t unknown_to_0rgb1555(uint32_t px)
+{
+   return ((px & 0xF80000) >> 19) | ((px & 0x00F800) >> 6) | ((px & 0x0000F8) << 7);
+}
+
 void retro_run(void) 
 {
-   bool updated = false;
+   unsigned i;
+   bool updated  = false;
+   uint32_t *src = (uint32_t*)&dispbuffer[0];
+   uint16_t *dst = (uint16_t*)&vid_buf[0];
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables();
@@ -901,18 +876,12 @@ void retro_run(void)
    input_poll_cb();
    
    //YabauseExec(); runs from handle events
-   if(PERCore) PERCore->HandleEvents();
+   if(PERCore)
+      PERCore->HandleEvents();
 
-   for (unsigned i = 0; i < game_height * game_width; i++)
-   {
-      uint32_t source = dispbuffer[i];
+   for (i = 0; i < game_height * game_width; i++)
+      *dst++ = unknown_to_0rgb1555(*src++);
 
-      uint16_t r = ((source & 0xF80000) >> 19);
-      uint16_t g = ((source & 0x00F800) >> 6);
-      uint16_t b = ((source & 0x0000F8) << 7);
-      vid_buf[i] = r | g | b;
-   }
-	
 	video_cb(vid_buf, game_width, game_height, game_width * 2);
 }
 
@@ -921,7 +890,7 @@ void retro_run(void)
 
 size_t mbstowcs(wchar_t *pwcs, const char *s, size_t n)
 {
-   if (pwcs == NULL)
+   if (!pwcs)
       return strlen(s);
    return mbsrtowcs(pwcs, &s, n, NULL);
 }

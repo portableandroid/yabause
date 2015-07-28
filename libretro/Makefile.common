@@ -1,11 +1,8 @@
-ifneq ($(HAVE_GRIFFIN), 1)
-ifeq ($(HAVE_PTHREADS),1)
-	HAVE_THREADS = 1
-	THREAD_FILES := thr-unix.c
-else
-	THREAD_FILES := $(SOURCE_DIR)/thr-dummy.c
-endif
-endif
+SOURCE_DIR := $(CORE_DIR)/../yabause/src
+
+INCFLAGS := -I$(CORE_DIR) -I$(SOURCE_DIR) -I$(SOURCE_DIR)/tools
+
+OBJECTS_S :=
 
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/bios.c \
@@ -37,12 +34,21 @@ ifeq ($(HAVE_GRIFFIN), 1)
 	SOURCES_C += $(LIBRETRO_DIR)/yabause_griffin.c
 else
 	SOURCES_C +=  $(SOURCE_DIR)/snddummy.c \
-	$(THREAD_FILES) \
 	$(SOURCE_DIR)/vdp1.c \
 	$(SOURCE_DIR)/vdp2.c \
 	$(SOURCE_DIR)/vidshared.c \
 	$(SOURCE_DIR)/vidsoft.c \
+	$(SOURCE_DIR)/tools/titan/titan.c \
 	$(SOURCE_DIR)/yabause.c
+endif
+
+ifneq ($(HAVE_GRIFFIN), 1)
+ifeq ($(HAVE_PTHREADS),1)
+	HAVE_THREADS = 1
+	SOURCES_C += thr-unix.c
+else
+	SOURCES_C += $(SOURCE_DIR)/thr-dummy.c
+endif
 endif
 
 ifeq ($(HAVE_GL),1)
@@ -53,7 +59,7 @@ SOURCES_C += \
 endif
 
 ifneq ($(HAVE_GRIFFIN), 1)
-LIBRETRO_SOURCES := libretro.c
+SOURCES_C += $(CORE_DIR)/libretro.c
 endif
 
 C68KEXEC_SOURCE := $(SOURCE_DIR)/c68k/c68kexec.c
@@ -61,12 +67,12 @@ C68KEXEC_OBJECT := $(C68KEXEC_SOURCE:.c=.o)
 
 ifneq ($(DYNAREC),0)
 FLAGS += -DSH2_DYNAREC
-SOURCES += $(SOURCE_DIR)/sh2_dynarec/sh2_dynarec.c
+SOURCES_C += $(SOURCE_DIR)/sh2_dynarec/sh2_dynarec.c
 ifeq ($(DYNAREC),3)
-SOURCES += $(SOURCE_DIR)/sh2_dynarec/linkage_arm.s
+OBJECTS_S += $(SOURCE_DIR)/sh2_dynarec/linkage_arm.s
 endif
 ifeq ($(DYNAREC),2)
-SOURCES += $(SOURCE_DIR)/sh2_dynarec/linkage_x64.s
+OBJECTS_S += $(SOURCE_DIR)/sh2_dynarec/linkage_x64.s
 endif
 endif
 
