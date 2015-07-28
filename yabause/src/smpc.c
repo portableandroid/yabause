@@ -232,6 +232,8 @@ static void SmpcINTBACKStatus(void) {
    }
 #ifdef WIN32
    memcpy(&times, localtime(&tmp), sizeof(times));
+#elif defined(__CELLOS_LV2__)
+   memcpy(&times, localtime(&tmp), sizeof(times));
 #elif defined(_arch_dreamcast) || defined(PSP) && !defined(__LIBRETRO__)
    internal_localtime_r(&tmp, &times);
 #else
