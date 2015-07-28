@@ -572,7 +572,7 @@ void retro_init(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb))
       perf_get_cpu_features_cb = perf_cb.get_cpu_features;
 
-#if 0
+#if 1
    enum retro_pixel_format rgb565 = RETRO_PIXEL_FORMAT_RGB565;
    if(environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &rgb565))
       log_cb(RETRO_LOG_INFO, "Frontend supports RGB565 - will use that instead of XRGB1555.\n");
@@ -836,7 +836,7 @@ void retro_reset(void)
 
 static INLINE uint16_t unknown_to_0rgb1555(uint32_t px)
 {
-   return ((px & 0xF80000) >> 19) | ((px & 0x00F800) >> 6) | ((px & 0x0000F8) << 7);
+   return (((px & 0xF80000) >> 19) | ((px & 0x00FC00) >> 5) |  ((px & 0x0000F8) << 8));
 }
 
 void retro_run(void) 
