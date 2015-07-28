@@ -375,7 +375,7 @@ int YuiSetVideoMode(int width, int height, int bpp, int fullscreen)
     return 0;
 }
 
-void updateCurrentResolution(void)
+void YuiSwapBuffers(void) 
 {
    int current_width  = 320;
    int current_height = 240;
@@ -387,13 +387,8 @@ void updateCurrentResolution(void)
    if (VIDCore && VIDCore->id) 
       VIDCore->GetGlSize(&current_width, &current_height);
 
-   game_width = current_width;
+   game_width  = current_width;
    game_height = current_height;
-}
-
-void YuiSwapBuffers(void) 
-{
-    updateCurrentResolution();
 }
 
 /************************************
@@ -829,7 +824,7 @@ void retro_deinit(void)
 
 void retro_reset(void)
 {
-	YabauseResetButton();
+   YabauseResetButton();
    YabauseInit(&yinit);
    YabauseSetDecilineMode(1);
 }
