@@ -86,12 +86,12 @@ else ifneq (,$(findstring ios,$(platform)))
 else ifneq (,$(findstring qnx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_qnx.so
 	fpic := -fPIC
-	SHARED := -shared -Wl,--version-script=libretro/link.T
+	SHARED := -shared -Wl,--version-script=link.T
 	CC = qcc -Vgcc_ntoarmv7le
 	CC_AS = $(CC)
 	CXX = QCC -Vgcc_ntoarmv7le
 	AR = qcc -Vgcc_ntoarmv7le
-	ENDIANNESS_DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=softfp
+	ENDIANNESS_DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=softfp -fms-extensions
 
 # PS3
 else ifneq (,$(findstring ps3,$(platform)))
