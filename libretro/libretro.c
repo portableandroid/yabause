@@ -281,17 +281,39 @@ static int SNDLIBRETROChangeVideoFormat(int vertfreq)
     return 0;
 }
 
+static void sdlConvert32uto16s(int32_t *srcL, int32_t *srcR, int16_t *dst, size_t len)
+{
+   u32 i;
+
+   for (i = 0; i < len; i++)
+   {
+      // Left Channel
+      if (*srcL > 0x7FFF)
+         *dst = 0x7FFF;
+      else if (*srcL < -0x8000)
+         *dst = -0x8000;
+      else
+         *dst = *srcL;
+      srcL++;
+      dst++;
+
+      // Right Channel
+      if (*srcR > 0x7FFF)
+         *dst = 0x7FFF;
+      else if (*srcR < -0x8000)
+         *dst = -0x8000;
+      else
+         *dst = *srcR;
+      srcR++;
+      dst++;
+   } 
+}
+
 static void SNDLIBRETROUpdateAudio(u32 *leftchanbuffer, u32 *rightchanbuffer, u32 num_samples)
 {
-   unsigned y;
-   int32_t sound_buf[4096];
-   int32_t *src = (int32_t*)leftchanbuffer;
-   int32_t *src2 = (int32_t*)rightchanbuffer;
-
-   for (y = 0; y < num_samples; y++)
-      sound_buf[y] = (src[y] << 16) | (src2[y] & 0xFFFF);
-
-   audio_batch_cb((const int16_t*)sound_buf, num_samples);
+   s16 sound_buf[4096];
+   sdlConvert32uto16s((int32_t*)leftchanbuffer, (int32_t*)rightchanbuffer, sound_buf, num_samples);
+   audio_batch_cb(sound_buf, num_samples);
 
    audio_size -= num_samples;
 }
