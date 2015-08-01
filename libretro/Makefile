@@ -53,7 +53,7 @@ else ifneq (,$(findstring linux-portable,$(platform)))
 # OS X
 else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
-	fpic := -fPIC -mmacosx-version-min=10.6
+	fpic := -fPIC -mmacosx-version-min=10.5
 	SHARED := -dynamiclib
 ifeq ($(arch),ppc)
 	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
