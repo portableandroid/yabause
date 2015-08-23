@@ -1,4 +1,4 @@
-/*  Copyright 2006 Theo Berkau
+/*  Copyright 2015 Theo Berkau
 
     This file is part of Yabause.
 
@@ -17,19 +17,9 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef VIDSOFT_H
-#define VIDSOFT_H
+#ifndef SCSPDSP_H
+#define SCSPDSP_H
 
-#include "vdp1.h"
-
-#define VIDCORE_SOFT   2
-
-extern pixel_t *dispbuffer;
-
-extern VideoInterface_struct VIDSoft;
-
-void VIDSoftVdp2DrawScreen(int screen);
-
-void VIDSoftSetBilinear(int b);
+#include "core.h"
 
 #endif

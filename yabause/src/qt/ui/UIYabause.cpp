@@ -31,6 +31,7 @@
 #include "UIDebugM68K.h"
 #include "UIDebugSCUDSP.h"
 #include "UIDebugSCSP.h"
+#include "UIDebugSCSPDSP.h"
 #include "UIMemoryEditor.h"
 #include "UIMemoryTransfer.h"
 #include "UIAbout.h"
@@ -108,13 +109,18 @@ UIYabause::UIYabause( QWidget* parent )
 	mLogDock->setWidget( teLog );
 	addDockWidget( Qt::BottomDockWidgetArea, mLogDock );
 	mLogDock->setVisible( false );
+
+#ifndef SH2_TRACE
+	aTraceLogging->setVisible(false);
+#endif
+
 	// create emulator thread
 	mYabauseThread = new YabauseThread( this );
 	// create hide mouse timer
 	hideMouseTimer = new QTimer();
 	// create mouse cursor timer
 	mouseCursorTimer = new QTimer();
-	// connectionsdd
+	// connections
 	connect( mYabauseThread, SIGNAL( requestSize( const QSize& ) ), this, SLOT( sizeRequested( const QSize& ) ) );
 	connect( mYabauseThread, SIGNAL( requestFullscreen( bool ) ), this, SLOT( fullscreenRequested( bool ) ) );
 	connect( mYabauseThread, SIGNAL( requestVolumeChange( int ) ), this, SLOT( on_sVolume_valueChanged( int ) ) );
@@ -157,6 +163,8 @@ UIYabause::UIYabause( QWidget* parent )
 	mouseSensitivity = vs->value( "Input/GunMouseSensitivity", 100 ).toInt();
 	showMenuBarHeight = menubar->height();
 	translations = QtYabause::getTranslationList();
+	
+	VIDSoftSetBilinear(QtYabause::settings()->value( "Video/Bilinear", false ).toBool());
 }
 
 void UIYabause::showEvent( QShowEvent* e )
@@ -902,6 +910,13 @@ void UIYabause::breakpointHandlerSCUDSP()
 	UIDebugSCUDSP( mYabauseThread, this ).exec();
 }
 
+void UIYabause::breakpointHandlerSCSPDSP()
+{
+	YabauseLocker locker( mYabauseThread );
+	CommonDialogs::information( QtYabause::translate( "Breakpoint Reached" ) );
+	UIDebugSCSPDSP( mYabauseThread, this ).exec();
+}
+
 void UIYabause::on_aViewDebugMSH2_triggered()
 {
 	YabauseLocker locker( mYabauseThread );
@@ -944,14 +959,26 @@ void UIYabause::on_aViewDebugSCSP_triggered()
 	UIDebugSCSP( this ).exec();
 }
 
+void UIYabause::on_aViewDebugSCSPDSP_triggered()
+{
+	YabauseLocker locker( mYabauseThread );
+	UIDebugSCSPDSP( mYabauseThread, this ).exec();
+}
+
 void UIYabause::on_aViewDebugMemoryEditor_triggered()
 {
 	YabauseLocker locker( mYabauseThread );
 	UIMemoryEditor( mYabauseThread, this ).exec();
 }
 
-void UIYabause::on_aHelpEmuCompatibility_triggered()
-{ QDesktopServices::openUrl( QUrl( aHelpEmuCompatibility->statusTip() ) ); }
+void UIYabause::on_aTraceLogging_triggered( bool toggled )
+{
+	SetInsTracingToggle(toggled? 1 : 0);
+	return;
+}
+
+void UIYabause::on_aHelpCompatibilityList_triggered()
+{ QDesktopServices::openUrl( QUrl( aHelpCompatibilityList->statusTip() ) ); }
 
 void UIYabause::on_aHelpAbout_triggered()
 {

@@ -21,7 +21,6 @@
 #include "UISettings.h"
 #include "../Settings.h"
 #include "../CommonDialogs.h"
-#include "UIWaitInput.h"
 #include "UIPortManager.h"
 
 #include <QDir>
@@ -206,7 +205,7 @@ void UISettings::tbBrowse_clicked()
 			return;
 		}
 		else if ( cbCdRom->currentText().contains( "iso", Qt::CaseInsensitive ) )
-			requestFile( QtYabause::translate( "Select your iso/cue/bin file" ), leCdRom, QtYabause::translate( "CD Images (*.iso *.cue *.bin *.mds)" ) );
+			requestFile( QtYabause::translate( "Select your iso/cue/bin file" ), leCdRom, QtYabause::translate( "CD Images (*.iso *.cue *.bin *.mds *.ccd)" ) );
 		else
 			requestFolder( QtYabause::translate( "Choose a cdrom drive/mount point" ), leCdRom );
 	}
@@ -433,6 +432,7 @@ void UISettings::loadSettings()
 	QString text = QString("%1x%2").arg(s->value( "Video/FullscreenWidth", s->value( "Video/Width", 640 ) ).toString(),
 										s->value( "Video/FullscreenHeight", s->value( "Video/Height", 480 ) ).toString());	
 	cbFullscreenResolution->setCurrentIndex(cbFullscreenResolution->findText(text));
+	cbBilinear->setChecked( s->value( "Video/Bilinear", false ).toBool() );
 	cbFullscreen->setChecked( s->value( "Video/Fullscreen", false ).toBool() );
 	cbVideoFormat->setCurrentIndex( cbVideoFormat->findData( s->value( "Video/VideoFormat", mVideoFormats.at( 0 ).id ).toInt() ) );
 
@@ -512,6 +512,7 @@ void UISettings::saveSettings()
 	}
 
 	s->setValue( "Video/Fullscreen", cbFullscreen->isChecked() );
+	s->setValue( "Video/Bilinear", cbBilinear->isChecked() );
 	s->setValue( "Video/VideoFormat", cbVideoFormat->itemData( cbVideoFormat->currentIndex() ).toInt() );
 
 	s->setValue( "General/ClockSync", cbClockSync->isChecked() );
