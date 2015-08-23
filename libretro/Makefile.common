@@ -24,10 +24,13 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/peripheral.c \
 	$(SOURCE_DIR)/profile.c \
 	$(SOURCE_DIR)/scsp2.c \
+	$(SOURCE_DIR)/scspdsp.c \
 	$(SOURCE_DIR)/scu.c \
 	$(SOURCE_DIR)/sh2core.c \
+	$(SOURCE_DIR)/sh2d.c \
 	$(SOURCE_DIR)/sh2idle.c \
 	$(SOURCE_DIR)/sh2int.c \
+	$(SOURCE_DIR)/sh2trace.c \
 	$(SOURCE_DIR)/smpc.c \
 
 ifeq ($(HAVE_GRIFFIN), 1)
