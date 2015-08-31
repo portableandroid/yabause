@@ -131,6 +131,16 @@ else ifneq (,$(findstring psp1,$(platform)))
 	ENDIANNESS_DEFINES += -DPSP -G0 
 	STATIC_LINKING = 1
 
+# Vita
+else ifneq (,$(findstring vita,$(platform)))
+	TARGET := $(TARGET_NAME)_libretro_vita.a
+	CC = arm-vita-eabi-gcc$(EXE_EXT)
+	CCX = arm-vita-eabi-g++$(EXE_EXT)
+	CC_AS = arm-vita-eabi-gcc$(EXE_EXT)
+	AR = arm-vita-eabi-ar$(EXE_EXT)
+	ENDIANNESS_DEFINES += -DVITA
+	STATIC_LINKING = 1
+
 # Nintendo Game Cube
 else ifneq (,$(findstring ngc,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_ngc.a
