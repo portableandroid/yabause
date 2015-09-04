@@ -33,7 +33,6 @@
 
 yabauseinit_struct yinit;
 
-uint16_t *vid_buf = NULL;
 int game_width;
 int game_height;
 
@@ -607,8 +606,6 @@ void retro_init(void)
       snprintf(bios_path, sizeof(bios_path), "%s%c%s", dir, slash, "saturn_bios.bin");
    }
 
-   vid_buf = (uint16_t*)calloc(sizeof(uint16_t), 704 * 512);
-
    if(PERCore)
       PERCore->Init();
 
@@ -839,9 +836,6 @@ size_t retro_get_memory_size(unsigned id)
 
 void retro_deinit(void)
 {
-   if (vid_buf)
-      free(vid_buf);
-   vid_buf = NULL;
 }
 
 void retro_reset(void)
@@ -851,17 +845,10 @@ void retro_reset(void)
    YabauseSetDecilineMode(1);
 }
 
-static INLINE uint16_t to_rgb565(uint32_t px)
-{
-   return (((px & 0xF80000) >> 19) | ((px & 0x00FC00) >> 5) |  ((px & 0x0000F8) << 8));
-}
-
 void retro_run(void) 
 {
    unsigned i;
    bool updated  = false;
-   uint32_t *src = (uint32_t*)&dispbuffer[0];
-   uint16_t *dst = (uint16_t*)&vid_buf[0];
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables();
@@ -874,10 +861,7 @@ void retro_run(void)
    if(PERCore)
       PERCore->HandleEvents();
 
-   for (i = 0; i < game_height * game_width; i++)
-      *dst++ = to_rgb565(*src++);
-
-	video_cb(vid_buf, game_width, game_height, game_width * 2);
+	video_cb(dispbuffer, game_width, game_height, game_width * 2);
 }
 
 #ifdef ANDROID
