@@ -122,7 +122,10 @@ T3Memory * T3MemoryInit(u32 size)
       return NULL;
 
    if ((mem->base_mem = (u8 *) calloc(size, sizeof(u8))) == NULL)
+   {
+      free(mem);
       return NULL;
+   }
 
    mem->mem = mem->base_mem + size;
 
@@ -1225,7 +1228,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (strncmp(id, "YSS", 3) != 0)
    {
-      fclose(fp);
       return -2;
    }
 
@@ -1248,7 +1250,6 @@ int YabLoadStateStream(FILE *fp)
       default:
          /* we're trying to open a save state using a future version
           * of the YSS format, that won't work, sorry :) */
-         fclose(fp);
          return -3;
          break;
    }
@@ -1261,7 +1262,6 @@ int YabLoadStateStream(FILE *fp)
    {
       // should setup reading so it's byte-swapped
       YabSetError(YAB_ERR_OTHER, (void *)"Load State byteswapping not supported");
-      fclose(fp);
       return -3;
    }
 
@@ -1270,7 +1270,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (size != (ftell(fp) - headersize))
    {
-      fclose(fp);
       return -2;
    }
    fseek(fp, headersize, SEEK_SET);
@@ -1281,7 +1280,6 @@ int YabLoadStateStream(FILE *fp)
    
    if (StateCheckRetrieveHeader(fp, "CART", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1290,7 +1288,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "CS2 ", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1299,7 +1296,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "MSH2", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1308,7 +1304,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "SSH2", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1317,7 +1312,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "SCSP", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1326,7 +1320,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "SCU ", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1335,7 +1328,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "SMPC", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1344,7 +1336,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "VDP1", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1353,7 +1344,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "VDP2", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;
@@ -1362,7 +1352,6 @@ int YabLoadStateStream(FILE *fp)
 
    if (StateCheckRetrieveHeader(fp, "OTHR", &version, &chunksize) != 0)
    {
-      fclose(fp);
       // Revert back to old state here
       ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
       return -3;

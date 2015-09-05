@@ -59,10 +59,18 @@ static char * wcsdupstr(const wchar_t * path)
 static FILE * _wfopen(const wchar_t *wpath, const wchar_t *wmode)
 {
    FILE * fd;
-   char * path = wcsdupstr(wpath);
-   char * mode = wcsdupstr(wmode);
+   char * path;
+   char * mode;
 
-   if ((path == NULL) || (mode == NULL)) return NULL;
+   path = wcsdupstr(wpath);
+   if (path == NULL) return NULL;
+
+   mode = wcsdupstr(wmode);
+   if (mode == NULL)
+   {
+      free(path);
+      return NULL;
+   }
 
    fd = fopen(path, mode);
 
@@ -1079,7 +1087,6 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 	}
 
 	fclose(iso_file);
-
 
 	return 0;
 }
