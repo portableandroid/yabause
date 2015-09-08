@@ -469,35 +469,40 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 
 size_t retro_serialize_size(void) 
 {
-#if 0
-   return STATE_SIZE;
-#endif
-   return 0;
+   void *buffer;
+   size_t size;
+
+   ScspMuteAudio(SCSP_MUTE_SYSTEM);
+   YabSaveStateBuffer (&buffer, &size);
+   ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
+
+   free(buffer);
+
+   return size;
 }
 
 bool retro_serialize(void *data, size_t size)
 {
-#if 0
-   if (size != STATE_SIZE)
-      return FALSE;
-#endif
+   void *buffer;
+   size_t out_size;
 
    ScspMuteAudio(SCSP_MUTE_SYSTEM);
-   int error = YabSaveState((const char*)data);
+   int error = YabSaveStateBuffer (&buffer, &out_size);
    ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
+
+   memcpy(data, buffer, size);
+
+   free(buffer);
+
    return !error;
 }
 
 bool retro_unserialize(const void *data, size_t size)
 {
-#if 0
-   if (size != STATE_SIZE)
-      return FALSE;
-#endif
-
    ScspMuteAudio(SCSP_MUTE_SYSTEM);
-   int error = YabLoadState((const char*)data);
+   int error = YabLoadStateBuffer(data, size);
    ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
+
    return !error;
 }
 
