@@ -37,7 +37,7 @@ struct PixelData
 
 static struct TitanContext {
    int inited;
-   struct PixelData * vdp2framebuffer[8];
+   struct PixelData * vdp2framebuffer[6];
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
@@ -46,7 +46,7 @@ static struct TitanContext {
    struct PixelData * backscreen;
 } tt_context = {
    0,
-   { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+   { NULL, NULL, NULL, NULL, NULL, NULL },
    { NULL, NULL, NULL, NULL },
    320,
    224,
@@ -149,7 +149,7 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
 
 static u32 TitanDigPixel(int pos, int y)
 {
-   struct PixelData pixel_stack[8] = { 0 };
+   struct PixelData pixel_stack[2] = { 0 };
 
    int pixel_stack_pos = 0;
 
@@ -166,16 +166,16 @@ static u32 TitanDigPixel(int pos, int y)
          {
             pixel_stack[pixel_stack_pos] = tt_context.vdp2framebuffer[which_layer][pos];
             pixel_stack_pos++;
+
+            if (pixel_stack_pos == 2)
+               goto finished;//backscreen is unnecessary in this case
          }
       }
    }
 
    pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
 
-   if (!tt_context.trans)
-   {
-      return 0;
-   }
+finished:
 
    if (pixel_stack[0].linescreen)
    {
@@ -235,7 +235,7 @@ int TitanInit()
 
    if (! tt_context.inited)
    {
-      for(i = 0;i < 8;i++)
+      for(i = 0;i < 6;i++)
       {
          if ((tt_context.vdp2framebuffer[i] = (struct PixelData *)calloc(sizeof(struct PixelData), 704 * 512)) == NULL)
             return -1;
@@ -254,7 +254,7 @@ int TitanInit()
       tt_context.inited = 1;
    }
 
-   for(i = 0;i < 8;i++)
+   for(i = 0;i < 6;i++)
       memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 512);
 
    for(i = 1;i < 4;i++)
@@ -267,15 +267,15 @@ void TitanErase()
 {
    int i = 0;
 
-   for (i = 0; i < 8; i++)
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(struct PixelData) * 704 * 512);
+   for (i = 0; i < 6; i++)
+      memset(tt_context.vdp2framebuffer[i], 0, sizeof(struct PixelData) * tt_context.vdp2width * tt_context.vdp2height);
 }
 
 int TitanDeInit()
 {
    int i;
 
-   for(i = 0;i < 8;i++)
+   for(i = 0;i < 6;i++)
       free(tt_context.vdp2framebuffer[i]);
 
    for(i = 1;i < 4;i++)
@@ -366,7 +366,7 @@ void TitanRender(pixel_t * dispbuffer)
    u32 dot;
    int x, y;
 
-   if (!tt_context.inited)
+   if (!tt_context.inited || (!tt_context.trans))
    {
       return;
    }
