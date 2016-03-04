@@ -40,13 +40,12 @@ Vdp2 * Vdp2Regs;
 Vdp2Internal_struct Vdp2Internal;
 Vdp2External_struct Vdp2External;
 
-Vdp2 Vdp2Lines[270];
+static Vdp2 Vdp2Lines[270];
 
 static int autoframeskipenab=0;
 static int throttlespeed=0;
 u64 lastticks=0;
 static int fps;
-int vdp2_is_odd_frame = 0;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -246,7 +245,7 @@ void Vdp2Reset(void) {
    Vdp2Regs->COBG = 0x0000;
    Vdp2Regs->COBB = 0x0000;
 
-   yabsys.VBlankLineCount = 225;
+   yabsys.VBlankLineCount = 224;
    Vdp2Internal.ColorMode = 0;
 
    Vdp2External.disptoggle = 0xFF;
@@ -292,8 +291,8 @@ void Vdp2HBlankOUT(void) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-Vdp2 * Vdp2RestoreRegs(int line, Vdp2* lines) {
-   return line > 270 ? NULL : lines + line;
+Vdp2 * Vdp2RestoreRegs(int line) {
+   return line > 270 ? NULL : Vdp2Lines + line;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -338,12 +337,7 @@ void Vdp2VBlankOUT(void) {
    static u64 onesecondticks = 0;
    static VideoInterface_struct * saved = NULL;
 
-   if (vdp2_is_odd_frame)
-      vdp2_is_odd_frame = 0;
-   else
-      vdp2_is_odd_frame = 1;
-
-   Vdp2Regs->TVSTAT = ((Vdp2Regs->TVSTAT & ~0x0008) & ~0x0002) | (vdp2_is_odd_frame << 1);
+   Vdp2Regs->TVSTAT = (Vdp2Regs->TVSTAT & ~0x0008) | 0x0002;
 
    if (skipnextframe && (! saved))
    {
@@ -533,7 +527,7 @@ void FASTCALL Vdp2WriteWord(u32 addr, u16 val) {
    {
       case 0x000:
          Vdp2Regs->TVMD = val;
-         yabsys.VBlankLineCount = 225+(val & 0x30);
+         yabsys.VBlankLineCount = 224+(val & 0x30);
          return;
       case 0x002:
          Vdp2Regs->EXTEN = val;

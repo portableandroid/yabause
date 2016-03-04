@@ -10,9 +10,7 @@ endif()
 
 include_directories(${PORT_INCLUDE_DIRS})
 
-find_package(Threads)
-
 add_executable(yabause-runner yui.cpp)
-target_link_libraries(yabause-runner yabause ${YABAUSE_LIBRARIES} ${PORT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(yabause-runner yabause ${YABAUSE_LIBRARIES} ${PORT_LIBRARIES})
 
 yab_port_success(yabause-runner)

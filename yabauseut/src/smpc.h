@@ -30,6 +30,5 @@ void analogtest();
 void stunner_test();
 void per_test();
 void misc_smpc_test();
-void disable_iapetus_handler();
 
 #endif

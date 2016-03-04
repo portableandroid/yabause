@@ -43,7 +43,6 @@
 #include "scu.h"
 #include "sh2core.h"
 #include "smpc.h"
-#include "vidsoft.h"
 #include "vdp2.h"
 #include "yui.h"
 #include "bios.h"
@@ -146,7 +145,6 @@ int YabauseInit(yabauseinit_struct *init)
 {
    // Need to set this first, so init routines see it
    yabsys.UseThreads = init->usethreads;
-   yabsys.NumThreads = init->numthreads;
 
    // Initialize both cpu's
    if (SH2Init(init->sh2coretype) != 0)
@@ -300,20 +298,6 @@ int YabauseInit(yabauseinit_struct *init)
 #ifdef HAVE_GDBSTUB
    GdbStubInit(MSH2, 43434);
 #endif
-
-   if (yabsys.UseThreads)
-   {
-      int num = yabsys.NumThreads < 1 ? 1 : yabsys.NumThreads;
-      VIDSoftSetVdp1ThreadEnable(num == 1 ? 0 : 1);
-      VIDSoftSetNumLayerThreads(num);
-      VIDSoftSetNumPriorityThreads(num);
-   }
-   else
-   {
-      VIDSoftSetVdp1ThreadEnable(0);
-      VIDSoftSetNumLayerThreads(1);
-      VIDSoftSetNumPriorityThreads(1);
-   }
 
    return 0;
 }

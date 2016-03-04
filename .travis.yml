@@ -73,5 +73,5 @@ before_install:
   - cd build
 
 script:
-  - cmake -DYAB_FORCE_SECURE_STRINGS=ON ..
+  - cmake ..
   - make
