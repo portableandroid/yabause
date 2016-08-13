@@ -139,6 +139,7 @@ else ifneq (,$(findstring vita,$(platform)))
 	CC_AS = arm-vita-eabi-gcc$(EXE_EXT)
 	AR = arm-vita-eabi-ar$(EXE_EXT)
 	ENDIANNESS_DEFINES += -DVITA
+	#DYNAREC = 2
 	STATIC_LINKING = 1
 
 # Nintendo Game Cube
