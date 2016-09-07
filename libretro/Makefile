@@ -85,7 +85,7 @@ else ifneq (,$(findstring ios,$(platform)))
 
 # QNX
 else ifneq (,$(findstring qnx,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_qnx.so
+	TARGET := $(TARGET_NAME)_libretro_$(platform).so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--version-script=link.T
 	CC = qcc -Vgcc_ntoarmv7le
@@ -96,7 +96,7 @@ else ifneq (,$(findstring qnx,$(platform)))
 
 # PS3
 else ifneq (,$(findstring ps3,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_ps3.a
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-gcc.exe
 	CXX = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-g++.exe
 	AR = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-ar.exe
@@ -114,7 +114,7 @@ else ifneq (,$(findstring sncps3,$(platform)))
 
 # Lightweight PS3 Homebrew SDK
 else ifneq (,$(findstring psl1ght,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_psl1ght.a
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
 	CC = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
 	AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
@@ -123,7 +123,7 @@ else ifneq (,$(findstring psl1ght,$(platform)))
 
 # PSP
 else ifneq (,$(findstring psp1,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_psp1.a
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = psp-gcc$(EXE_EXT)
 	CC_AS = $(CC)
 	CXX = psp-g++$(EXE_EXT)
@@ -133,7 +133,7 @@ else ifneq (,$(findstring psp1,$(platform)))
 
 # Vita
 else ifneq (,$(findstring vita,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_vita.a
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = arm-vita-eabi-gcc$(EXE_EXT)
 	CCX = arm-vita-eabi-g++$(EXE_EXT)
 	CC_AS = arm-vita-eabi-gcc$(EXE_EXT)
@@ -144,7 +144,7 @@ else ifneq (,$(findstring vita,$(platform)))
 
 # Nintendo Game Cube
 else ifneq (,$(findstring ngc,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_ngc.a
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
 	CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
 	AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
@@ -153,7 +153,7 @@ else ifneq (,$(findstring ngc,$(platform)))
 
 # Nintendo Wii
 else ifneq (,$(findstring wii,$(platform)))
-	TARGET := $(TARGET_NAME)_libretro_wii.a
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
 	CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
 	CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
 	AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
@@ -184,7 +184,12 @@ else ifneq (,$(findstring armv,$(platform)))
 	endif
 	FLAGS += -DARM
 
-	# GCW0
+# Emscripten
+else ifeq ($(platform), emscripten)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).bc
+	STATIC_LINKING = 1
+
+# GCW0
 else ifeq ($(platform), gcw0)
 	TARGET := $(TARGET_NAME)_libretro.so
 	CC = /opt/gcw0-toolchain/usr/bin/mipsel-linux-gcc
