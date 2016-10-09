@@ -594,6 +594,7 @@ void retro_init(void)
    perf_get_cpu_features_cb = NULL;
    game_width               = 320;
    game_height              = 240;
+   uint64_t serialization_quirks = RETRO_SERIALIZATION_QUIRK_SINGLE_SESSION;
    /* Performance level for interpreter CPU core is 16 */
    unsigned level           = 16;
 
@@ -625,6 +626,8 @@ void retro_init(void)
       PERCore->Init();
 
    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
+
+   environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialization_quirks);
 }
 
 bool retro_load_game(const struct retro_game_info *info)
