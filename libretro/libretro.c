@@ -67,7 +67,7 @@ void retro_set_environment(retro_environment_t cb)
        { "Saturn 3D Pad", RETRO_DEVICE_ANALOG },
        { "None", RETRO_DEVICE_NONE },
    };
-   
+
    static const struct retro_controller_description mtaps[] = {
        { "Saturn Pad", RETRO_DEVICE_JOYPAD },
        { "Saturn 3D Pad", RETRO_DEVICE_ANALOG },
@@ -75,7 +75,7 @@ void retro_set_environment(retro_environment_t cb)
        { "Multitap + 3D Pad", RETRO_DEVICE_MTAP_3D },
        { "None", RETRO_DEVICE_NONE },
    };
-   
+
    static const struct retro_controller_info ports[] = {
       { mtaps, 5 },
       { mtaps, 5 },
@@ -85,9 +85,13 @@ void retro_set_environment(retro_environment_t cb)
       { peripherals, 3 },
       { peripherals, 3 },
       { peripherals, 3 },
+      { peripherals, 3 },
+      { peripherals, 3 },
+      { peripherals, 3 },
+      { peripherals, 3 },
       { 0 },
    };
-   
+
    environ_cb = cb;
 
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
@@ -102,9 +106,9 @@ void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
 // PERLIBRETRO
 #define PERCORE_LIBRETRO 2
 
-static int pad_type[8] = {1,1,1,1,1,1,1,1};
+static int pad_type[12] = {1,1,1,1,1,1,1,1,1,1,1,1};
 static unsigned players = 2;
-static bool multitap[2] = {0};
+static bool multitap[2] = {0,0};
 
 int PERLIBRETROInit(void)
 {
@@ -112,19 +116,20 @@ int PERLIBRETROInit(void)
    uint32_t i, j;
    PortData_struct* portdata = NULL;
 
-   players = 6;
+   //1 multitap + 1 peripherial
+   players = 7;
 
    if(!multitap[0] && !multitap[1])
       players = 2;
    else if(multitap[0] && multitap[1])
-      players = 8;
+      players = 12;
 
    PerPortReset();
 
    for(i = 0; i < players; i++)
    {
       //Ports can handle 6 peripherals, fill port 1 first.
-      if(players > 2 && i < 6 || i == 0)
+      if((players > 2 && i < 6) || i == 0)
          portdata = &PORTDATA1;
       else
          portdata = &PORTDATA2;
@@ -164,7 +169,7 @@ static int PERLIBRETROHandleEvents(void)
       switch(pad_type[i])
       {
          case RETRO_DEVICE_ANALOG:
-            analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG, 
+            analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG,
                   RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
 
             PerAxisValue((i << 8) + PERANALOG_AXIS1, (u8)((analog_left_x + 0x8000) >> 8));
@@ -242,7 +247,7 @@ static int PERLIBRETROHandleEvents(void)
             break;
       }
    }
-   
+
    if ( YabauseExec() != 0 )
       return -1;
    return 0;
@@ -315,7 +320,7 @@ static void sdlConvert32uto16s(int32_t *srcL, int32_t *srcR, int16_t *dst, size_
          *dst = *srcR;
       srcR++;
       dst++;
-   } 
+   }
 }
 
 static void SNDLIBRETROUpdateAudio(u32 *leftchanbuffer, u32 *rightchanbuffer, u32 num_samples)
@@ -406,16 +411,16 @@ int YuiSetVideoMode(int width, int height, int bpp, int fullscreen)
     return 0;
 }
 
-void YuiSwapBuffers(void) 
+void YuiSwapBuffers(void)
 {
    int current_width  = 320;
    int current_height = 240;
 
-   /* Test if VIDCore valid AND NOT the 
-    * Dummy Interface (or at least VIDCore->id != 0). 
+   /* Test if VIDCore valid AND NOT the
+    * Dummy Interface (or at least VIDCore->id != 0).
     * Avoid calling GetGlSize if Dummy/ID = 0 is selected
     */
-   if (VIDCore && VIDCore->id) 
+   if (VIDCore && VIDCore->id)
       VIDCore->GetGlSize(&current_width, &current_height);
 
    game_width  = current_width;
@@ -477,7 +482,7 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
       PERCore->Init();
 }
 
-size_t retro_serialize_size(void) 
+size_t retro_serialize_size(void)
 {
    void *buffer;
    size_t size;
@@ -575,7 +580,7 @@ static void check_variables(void)
          addon_cart_type = CART_DRAM8MBIT;
       else if (strcmp(var.value, "4M_ram") == 0 && addon_cart_type != CART_DRAM32MBIT)
          addon_cart_type = CART_DRAM32MBIT;
-   } 
+   }
 }
 
 static int does_file_exist(const char *filename)
@@ -762,6 +767,70 @@ bool retro_load_game(const struct retro_game_info *info)
       { 7, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Analog X" },
       { 7, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Y" },
 
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "B" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "C" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "X" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "A" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Y" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Z" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R" },
+      { 8, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+      { 8, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Analog X" },
+      { 8, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Y" },
+
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "B" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "C" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "X" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "A" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Y" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Z" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R" },
+      { 9, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+      { 9, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Analog X" },
+      { 9, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Y" },
+
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "B" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "C" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "X" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "A" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Y" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Z" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R" },
+      { 10, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+      { 10, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Analog X" },
+      { 10, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Y" },
+
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "B" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "C" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "X" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "A" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Y" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Z" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R" },
+      { 11, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+      { 11, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Analog X" },
+      { 11, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Y" },
+
       { 0 },
    };
    check_variables();
@@ -769,7 +838,7 @@ bool retro_load_game(const struct retro_game_info *info)
    snprintf(full_path, sizeof(full_path), "%s", info->path);
 
    environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
-   
+
    yinit.cdcoretype      = CDCORE_ISO;
    yinit.cdpath          = full_path;
    /* Emulate BIOS */
@@ -811,13 +880,13 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
    return false;
 }
 
-void retro_unload_game(void) 
+void retro_unload_game(void)
 {
 	YabauseDeInit();
 }
 
 unsigned retro_get_region(void)
-{  
+{
    return Cs2GetRegionID() > 6 ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
 }
 
@@ -863,18 +932,18 @@ void retro_reset(void)
    YabauseSetDecilineMode(1);
 }
 
-void retro_run(void) 
+void retro_run(void)
 {
    unsigned i;
    bool updated  = false;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables();
-	
+
    audio_size = SAMPLEFRAME;
-   
+
    input_poll_cb();
-   
+
    //YabauseExec(); runs from handle events
    if(PERCore)
       PERCore->HandleEvents();
