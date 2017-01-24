@@ -836,6 +836,10 @@ bool retro_load_game(const struct retro_game_info *info)
 
       { 0 },
    };
+
+   if (!info)
+      return false;
+
    check_variables();
 
    snprintf(full_path, sizeof(full_path), "%s", info->path);
