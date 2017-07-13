@@ -92,10 +92,28 @@ static FILE * _wfopen(const wchar_t *wpath, const wchar_t *wmode)
 #define ftell rftell
 #define fseek rfseek
 #define fread rfread
+#define fgets rfgets
 
 RFILE* rfopen(const char* path, char* mode)
 {
-	return filestream_open(path, 0, -1);
+	unsigned int retro_mode = RFILE_MODE_READ_TEXT;
+	if (strstr(mode, "r"))
+	{
+		if (strstr(mode, "b"))
+		{
+			retro_mode = RFILE_MODE_READ;
+		}
+	}
+	if (strstr(mode, "w"))
+	{
+		retro_mode = RFILE_MODE_WRITE;
+	}
+	if (strstr(mode, "+"))
+	{
+		retro_mode = RFILE_MODE_READ_WRITE;
+	}
+
+	return filestream_open(path, retro_mode, -1);
 }
 
 int rfclose(RFILE* stream)
@@ -103,7 +121,7 @@ int rfclose(RFILE* stream)
 	return filestream_close(stream);
 }
 
-long ftell(RFILE* stream)
+long rftell(RFILE* stream)
 {
 	return filestream_tell(stream);
 }
@@ -116,6 +134,11 @@ int rfseek(RFILE* stream, long offset, int origin)
 size_t rfread(void* buffer, size_t elementSize, size_t elementCount, RFILE* stream)
 {
 	filestream_read(stream, buffer, elementSize*elementCount);
+}
+
+char* rfgets(char* buffer, int maxCount, FILE* stream)
+{
+	return filestream_gets(stream, buffer, maxCount);
 }
 
 #endif
@@ -719,7 +742,7 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                char img_filename[512];
                memset(img_filename, 0, 512);
 			   
-               if (fscanf(iso_file, "%512c", img_filename) != 1)
+               if (fgets(img_filename, 512, iso_file) == NULL)
                {
                   YabSetError(YAB_ERR_FILEREAD, mds_filename);
                   free(session->track);
