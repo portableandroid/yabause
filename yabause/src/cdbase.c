@@ -34,6 +34,10 @@
 
 #include <stdarg.h>
 
+#ifdef __LIBRETRO__
+#include "streams/file_stream_transforms.h"
+#endif
+
 #ifndef HAVE_STRICMP
 #ifdef HAVE_STRCASECMP
 #define stricmp strcasecmp
@@ -83,65 +87,6 @@ static FILE * _wfopen(const wchar_t *wpath, const wchar_t *wmode)
 }
 #endif
 
-#ifdef __LIBRETRO__
-#include "streams/file_stream.h"
-#define FILE RFILE
-
-#define fopen rfopen
-#define fclose rfclose
-#define ftell rftell
-#define fseek rfseek
-#define fread rfread
-#define fgets rfgets
-
-RFILE* rfopen(const char* path, char* mode)
-{
-	unsigned int retro_mode = RFILE_MODE_READ_TEXT;
-	if (strstr(mode, "r"))
-	{
-		if (strstr(mode, "b"))
-		{
-			retro_mode = RFILE_MODE_READ;
-		}
-	}
-	if (strstr(mode, "w"))
-	{
-		retro_mode = RFILE_MODE_WRITE;
-	}
-	if (strstr(mode, "+"))
-	{
-		retro_mode = RFILE_MODE_READ_WRITE;
-	}
-
-	return filestream_open(path, retro_mode, -1);
-}
-
-int rfclose(RFILE* stream)
-{
-	return filestream_close(stream);
-}
-
-long rftell(RFILE* stream)
-{
-	return filestream_tell(stream);
-}
-
-int rfseek(RFILE* stream, long offset, int origin)
-{
-	filestream_seek(stream, offset, origin);
-}
-
-size_t rfread(void* buffer, size_t elementSize, size_t elementCount, RFILE* stream)
-{
-	filestream_read(stream, buffer, elementSize*elementCount);
-}
-
-char* rfgets(char* buffer, int maxCount, FILE* stream)
-{
-	return filestream_gets(stream, buffer, maxCount);
-}
-
-#endif
 //////////////////////////////////////////////////////////////////////////////
 
 // Contains the Dummy and ISO CD Interfaces
