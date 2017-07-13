@@ -446,7 +446,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       return -1;
 
    // Skip image filename
-   if (sscanf(iso_file_content_current_pos, "FILE \"%*[^\"]\" %*s\r\n%n", &numcharsread) == EOF)
+   if (sscanf(iso_file_content_current_pos, "FILE \"%*[^\"]\" %*s\r\n%n", &numcharsread) != 0)
    {
       free(iso_file_content);
       free(temp_buffer);
@@ -458,7 +458,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    for (;;)
    {
       // Retrieve a line in cue
-      if (sscanf(iso_file_content_current_pos, "%s%n", temp_buffer, &numcharsread) == EOF)
+      if (sscanf(iso_file_content_current_pos, "%s%n", temp_buffer, &numcharsread) != 1)
          break;
       iso_file_content_current_pos += numcharsread;
 
@@ -466,7 +466,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       if (strncmp(temp_buffer, "TRACK", 5) == 0)
       {
          // Handle accordingly
-         if (sscanf(iso_file_content_current_pos, "%d %[^\r\n]\r\n%n", &track_num, temp_buffer, &numcharsread) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d %[^\r\n]\r\n%n", &track_num, temp_buffer, &numcharsread) != 2)
             break;
          iso_file_content_current_pos += numcharsread;
 
@@ -488,7 +488,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       {
          // Handle accordingly
 
-         if (sscanf(iso_file_content_current_pos, "%d %d:%d:%d\r\n%n", &indexnum, &min, &sec, &frame, &numcharsread) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d %d:%d:%d\r\n%n", &indexnum, &min, &sec, &frame, &numcharsread) != 4)
             break;
 		 iso_file_content_current_pos += numcharsread;
 
@@ -501,7 +501,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       }
       else if (strncmp(temp_buffer, "PREGAP", 6) == 0)
       {
-         if (sscanf(iso_file_content_current_pos, "%d:%d:%d\r\n%n", &min, &sec, &frame, &numcharsread) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d:%d:%d\r\n%n", &min, &sec, &frame, &numcharsread) != 3)
             break;
 		 iso_file_content_current_pos += numcharsread;
 
@@ -509,13 +509,14 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       }
       else if (strncmp(temp_buffer, "POSTGAP", 7) == 0)
       {
-         if (sscanf(iso_file_content_current_pos, "%d:%d:%d\r\n%n", &min, &sec, &frame, &numcharsread) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d:%d:%d\r\n%n", &min, &sec, &frame, &numcharsread) != 3)
             break;
 		 iso_file_content_current_pos += numcharsread;
       }
       else if (strncmp(temp_buffer, "FILE", 4) == 0)
       {
          YabSetError(YAB_ERR_OTHER, "Unsupported cue format");
+		 free(iso_file_content);
          free(temp_buffer);
          return -1;
       }
@@ -526,6 +527,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
 
    // Retrieve image filename
    matched = sscanf(iso_file_content, "FILE \"%[^\"]\" %*s\r\n", temp_buffer);
+   free(iso_file_content);
 
    // Now go and open up the image file, figure out its size, etc.
    if ((bin_file = fopen(temp_buffer, "rb")) == NULL)
@@ -614,7 +616,6 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    memcpy(disc.session[0].track, trk, track_num * sizeof(track_info_struct));
 
    // buffer is no longer needed
-   free(iso_file_content);
    free(temp_buffer);
 
    return 0;
