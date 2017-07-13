@@ -32,6 +32,8 @@
 #include "error.h"
 #include "debug.h"
 
+#include <stdarg.h>
+
 #ifndef HAVE_STRICMP
 #ifdef HAVE_STRCASECMP
 #define stricmp strcasecmp
@@ -404,7 +406,9 @@ static disc_info_struct disc;
 static int LoadBinCue(const char *cuefilename, FILE *iso_file)
 {
    u32 size;
-   char *temp_buffer, *temp_buffer2;
+   char *iso_file_content, *iso_file_content_current_pos;
+   size_t numcharsread = 0;
+   char*temp_buffer, *temp_buffer2;
    unsigned int track_num;
    unsigned int indexnum, min, sec, frame;
    unsigned int pregap=0;
@@ -415,7 +419,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    FILE * bin_file;
    int matched = 0;
 
-	memset(trk, 0, sizeof(trk));
+   memset(trk, 0, sizeof(trk));
    disc.session_num = 1;
    disc.session = malloc(sizeof(session_info_struct) * disc.session_num);
    if (disc.session == NULL)
@@ -428,30 +432,43 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    size = ftell(iso_file);
    fseek(iso_file, 0, SEEK_SET);
 
+   iso_file_content = malloc(size + 1);
+   if (iso_file_content == NULL)
+	   return -1;
+
+   iso_file_content_current_pos = iso_file_content;
+   fread(iso_file_content, size, 1, iso_file);
+   iso_file_content[size] = '\0';
+   fclose(iso_file);
+
    // Allocate buffer with enough space for reading cue
    if ((temp_buffer = (char *)calloc(size, 1)) == NULL)
       return -1;
 
    // Skip image filename
-   if (fscanf(iso_file, "FILE \"%*[^\"]\" %*s\r\n") == EOF)
+   if (sscanf(iso_file_content_current_pos, "FILE \"%*[^\"]\" %*s\r\n%n", &numcharsread) == EOF)
    {
+      free(iso_file_content);
       free(temp_buffer);
       return -1;
    }
+   iso_file_content_current_pos += numcharsread;
 
    // Time to generate TOC
    for (;;)
    {
       // Retrieve a line in cue
-      if (fscanf(iso_file, "%s", temp_buffer) == EOF)
+      if (sscanf(iso_file_content_current_pos, "%s%n", temp_buffer, &numcharsread) == EOF)
          break;
+      iso_file_content_current_pos += numcharsread;
 
       // Figure out what it is
       if (strncmp(temp_buffer, "TRACK", 5) == 0)
       {
          // Handle accordingly
-         if (fscanf(iso_file, "%d %[^\r\n]\r\n", &track_num, temp_buffer) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d %[^\r\n]\r\n%n", &track_num, temp_buffer, &numcharsread) == EOF)
             break;
+         iso_file_content_current_pos += numcharsread;
 
          if (strncmp(temp_buffer, "MODE1", 5) == 0 ||
             strncmp(temp_buffer, "MODE2", 5) == 0)
@@ -471,8 +488,9 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       {
          // Handle accordingly
 
-         if (fscanf(iso_file, "%d %d:%d:%d\r\n", &indexnum, &min, &sec, &frame) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d %d:%d:%d\r\n%n", &indexnum, &min, &sec, &frame, &numcharsread) == EOF)
             break;
+		 iso_file_content_current_pos += numcharsread;
 
          if (indexnum == 1)
          {
@@ -483,15 +501,17 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       }
       else if (strncmp(temp_buffer, "PREGAP", 6) == 0)
       {
-         if (fscanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d:%d:%d\r\n%n", &min, &sec, &frame, &numcharsread) == EOF)
             break;
+		 iso_file_content_current_pos += numcharsread;
 
          pregap += MSF_TO_FAD(min, sec, frame);
       }
       else if (strncmp(temp_buffer, "POSTGAP", 7) == 0)
       {
-         if (fscanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
+         if (sscanf(iso_file_content_current_pos, "%d:%d:%d\r\n%n", &min, &sec, &frame, &numcharsread) == EOF)
             break;
+		 iso_file_content_current_pos += numcharsread;
       }
       else if (strncmp(temp_buffer, "FILE", 4) == 0)
       {
@@ -504,9 +524,8 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    trk[track_num].file_offset = 0;
    trk[track_num].fad_start = 0xFFFFFFFF;
 
-   // Go back, retrieve image filename
-   fseek(iso_file, 0, SEEK_SET);
-   matched = fscanf(iso_file, "FILE \"%[^\"]\" %*s\r\n", temp_buffer);
+   // Retrieve image filename
+   matched = sscanf(iso_file_content, "FILE \"%[^\"]\" %*s\r\n", temp_buffer);
 
    // Now go and open up the image file, figure out its size, etc.
    if ((bin_file = fopen(temp_buffer, "rb")) == NULL)
@@ -595,9 +614,9 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    memcpy(disc.session[0].track, trk, track_num * sizeof(track_info_struct));
 
    // buffer is no longer needed
+   free(iso_file_content);
    free(temp_buffer);
 
-   fclose(iso_file);
    return 0;
 }
 
@@ -615,7 +634,7 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
       YabSetError(YAB_ERR_MEMORYALLOC, NULL);
       return -1;
    }
-	memset(session->track, 0, sizeof(track_info_struct) * mds_session->last_track);
+   memset(session->track, 0, sizeof(track_info_struct) * mds_session->last_track);
 
    for (i = 0; i < mds_session->total_blocks; i++)
    {
@@ -674,7 +693,7 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                wchar_t img_filename[512];
                memset(img_filename, 0, 512 * sizeof(wchar_t));
 
-               if (fwscanf(iso_file, L"%512c", img_filename) != 1)
+			   if (fwscanf(iso_file, L"%512c", img_filename) != 1)
                {
                   YabSetError(YAB_ERR_FILEREAD, mds_filename);
                   free(session->track);
@@ -698,7 +717,7 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                char filename[512];
                char img_filename[512];
                memset(img_filename, 0, 512);
-
+			   
                if (fscanf(iso_file, "%512c", img_filename) != 1)
                {
                   YabSetError(YAB_ERR_FILEREAD, mds_filename);
