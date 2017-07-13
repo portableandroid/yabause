@@ -81,6 +81,42 @@ static FILE * _wfopen(const wchar_t *wpath, const wchar_t *wmode)
 }
 #endif
 
+#ifdef __LIBRETRO__
+#include "streams/file_stream.h"
+#define FILE RFILE
+
+#define fopen rfopen
+#define fclose rfclose
+#define ftell rftell
+#define fseek rfseek
+#define fread rfread
+
+RFILE* rfopen(const char* path, char* mode)
+{
+	return filestream_open(path, 0, -1);
+}
+
+int rfclose(RFILE* stream)
+{
+	return filestream_close(stream);
+}
+
+long ftell(RFILE* stream)
+{
+	return filestream_tell(stream);
+}
+
+int rfseek(RFILE* stream, long offset, int origin)
+{
+	filestream_seek(stream, offset, origin);
+}
+
+size_t rfread(void* buffer, size_t elementSize, size_t elementCount, RFILE* stream)
+{
+	filestream_read(stream, buffer, elementSize*elementCount);
+}
+
+#endif
 //////////////////////////////////////////////////////////////////////////////
 
 // Contains the Dummy and ISO CD Interfaces
