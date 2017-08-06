@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2017 The RetroArch team
 *
 * ---------------------------------------------------------------------------------------
-* The following license statement only applies to this file (file_stream.h).
+* The following license statement only applies to this file (file_stream_transforms.h).
 * ---------------------------------------------------------------------------------------
 *
 * Permission is hereby granted, free of charge,
@@ -23,6 +23,8 @@
 #ifndef __LIBRETRO_SDK_FILE_STREAM_TRANSFORMS_H
 #define __LIBRETRO_SDK_FILE_STREAM_TRANSFORMS_H
 
+#include <retro_common_api.h>
+
 #include <streams/file_stream.h>
 #include <string.h>
 
@@ -38,57 +40,21 @@ RETRO_BEGIN_DECLS
 #define fgets rfgets
 #define fwrite rfwrite
 
-inline RFILE* rfopen(const char* path, char* mode)
-{
-	unsigned int retro_mode = RFILE_MODE_READ_TEXT;
-	if (strstr(mode, "r"))
-	{
-		if (strstr(mode, "b"))
-		{
-			retro_mode = RFILE_MODE_READ;
-		}
-	}
-	if (strstr(mode, "w"))
-	{
-		retro_mode = RFILE_MODE_WRITE;
-	}
-	if (strstr(mode, "+"))
-	{
-		retro_mode = RFILE_MODE_READ_WRITE;
-	}
+RFILE* rfopen(const char *path, char *mode);
 
-	return filestream_open(path, retro_mode, -1);
-}
+int rfclose(RFILE* stream);
 
-inline int rfclose(RFILE* stream)
-{
-	return filestream_close(stream);
-}
+long rftell(RFILE* stream);
 
-inline long rftell(RFILE* stream)
-{
-	return filestream_tell(stream);
-}
+int rfseek(RFILE* stream, long offset, int origin);
 
-inline int rfseek(RFILE* stream, long offset, int origin)
-{
-	return filestream_seek(stream, offset, origin);
-}
+size_t rfread(void* buffer,
+   size_t elementSize, size_t elementCount, RFILE* stream);
 
-inline size_t rfread(void* buffer, size_t elementSize, size_t elementCount, RFILE* stream)
-{
-	return filestream_read(stream, buffer, elementSize*elementCount);
-}
+char *rfgets(char *buffer, int maxCount, RFILE* stream);
 
-inline char* rfgets(char* buffer, int maxCount, FILE* stream)
-{
-	return filestream_gets(stream, buffer, maxCount);
-}
-
-inline size_t rfwrite(void const* buffer, size_t elementSize, size_t elementCount, RFILE* stream)
-{
-	return filestream_write(stream, buffer, elementSize*elementCount);
-}
+size_t rfwrite(void const* buffer,
+   size_t elementSize, size_t elementCount, RFILE* stream);
 
 RETRO_END_DECLS
 
