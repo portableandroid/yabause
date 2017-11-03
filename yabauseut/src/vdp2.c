@@ -63,8 +63,8 @@ void vline(int x1, int y1, int y2, u8 color)
 
 void draw_box(int x1, int y1, int x2, int y2, u8 color)
 {
-   hline(x1, y1, x2, color); 
-   hline(x1, y2, x2, color); 
+   hline(x1, y1, x2, color);
+   hline(x1, y2, x2, color);
    vline(x1, y1, y2, color);
    vline(x2, y1, y2, color);
 }
@@ -140,9 +140,9 @@ void load_font_8x8_to_vram_1bpp_to_4bpp(u32 tile_start_address, u32 ram_pointer)
             //get the corresponding bit for the x pos
             u8 bit = (scanline >> (x ^ 7)) & 1;
 
-            if ((x & 1) == 0) 
+            if ((x & 1) == 0)
                bit *= 16;
-            
+
             dest[(chr * 32) + (y * 4) + (x / 2)] |= bit;
          }
       }
@@ -151,7 +151,7 @@ void load_font_8x8_to_vram_1bpp_to_4bpp(u32 tile_start_address, u32 ram_pointer)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* str, 
+void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* str,
    int palette, u32 base, u32 tile_start_address,int special_priority,
    int special_color)
 {
@@ -167,8 +167,8 @@ void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* st
 
       volatile u32 *p = (volatile u32 *)(VDP2_RAM + base);
       //64 cells across in the plane
-      p[(y_pos * 64) + offset] = (special_priority << 29) | 
-         (special_color << 28) | (tile_start_address >> 5) | name | 
+      p[(y_pos * 64) + offset] = (special_priority << 29) |
+         (special_color << 28) | (tile_start_address >> 5) | name |
          (palette << 16);
    }
 }
@@ -178,7 +178,7 @@ void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* st
 void write_str_as_pattern_name_data(int x_pos, int y_pos, const char* str,
    int palette, u32 base, u32 tile_start_address)
 {
-   write_str_as_pattern_name_data_special(x_pos, y_pos, str, palette, base, tile_start_address, 0, 0);  
+   write_str_as_pattern_name_data_special(x_pos, y_pos, str, palette, base, tile_start_address, 0, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -584,7 +584,7 @@ void vdp2_line_color_screen_test()
    //test pattern at bottom of screen
    for (i = 20; i < 28; i += 4)
    {
-      
+
       write_str_as_pattern_name_data(0, i, "\n\n\n\nNBG0\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNBG0\n\n\n\n", 3, 0x000000, tile_address);
       write_str_as_pattern_name_data(0, i + 1, "\n\n\n\nNBG1\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNBG1\n\n\n\n", 3, 0x004000, tile_address);
       write_str_as_pattern_name_data(0, i + 2, "\n\n\n\nNBG2\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNBG2\n\n\n\n", 3, 0x008000, tile_address);
@@ -611,10 +611,13 @@ void vdp2_line_color_screen_test()
    int update_nbg_ratios = 1;
    int nbg_ratio[4] = {0};
    char ratio_status_str[64];
+   int lsmd = 0;
 
    for (;;)
    {
       vdp_vsync();
+
+      VDP2_REG_TVMD = (1 << 15) | (lsmd << 6) | 0;
 
       VDP2_REG_CCCTL = (ccctl.exccen << 10) | (ccctl.ccrtmd << 9) | (ccctl.ccmd << 8) | (ccctl.lcccen << 5) | 0xf;
       VDP2_REG_LNCLEN = lnclen;
@@ -753,6 +756,14 @@ void vdp2_line_color_screen_test()
          lnclen = 0x3f;
       }
 
+      if (per[0].but_push_once & PAD_DOWN)
+      {
+         if (lsmd == 3)
+            lsmd = 0;
+         else
+            lsmd = 3;
+      }
+
       if (per[0].but_push_once & PAD_START)
          break;
    }
@@ -871,7 +882,7 @@ void vdp2_extended_color_calculation_test()
    ra_add_var(&s, &v.line_color_mode_bit,                 "Line color mode bt ", 1);
    ra_add_var(&s, &v.line_color_screen_color_calc_enable, "Line col cal enabl ", 1);
    ra_add_var(&s, &v.line_color_screen_ratio,             "Line color cal rat ", 31);
-   
+
    int presets[][24] =
    {
       //preset 0
@@ -1427,7 +1438,7 @@ void vdp2_special_priority_test()
    int ratio_dir = 1;
 
    int nbg_ratio[4] = { 0 };
-   
+
 
    //vars for reg adjuster
    struct {
@@ -1489,7 +1500,7 @@ void vdp2_special_priority_test()
       "Start: Exit       "
    };
 
-   int i; 
+   int i;
    for (i = 0; i < 6; i++)
    {
       write_str_as_pattern_name_data(0, 17 + i, instructions[i], 3, 0x000000, vdp2_tile_address);
@@ -1618,7 +1629,7 @@ void vdp2_special_priority_test()
                //nbg color calc enable
                0, 0, 0, 0,
                //special function code bit
-               1, 0, 0, 0, 
+               1, 0, 0, 0,
                //special priority mode bit
                3, 2, 2, 0,
                //special function code select
@@ -1814,7 +1825,7 @@ void vdp2_line_window_test()
    ra_add_array(&s, (int(*)[])v.line_window_enable, 2, "Line window enab #", 1);
 
    for (i = 0; i < 4; i++)
-   { 
+   {
       char str[64] = { 0 };
       sprintf(str, "NBG%d window logic  ", i);
       ra_add_var(&s, &v.nbg[i].window_logic,              str, 1);
@@ -1874,7 +1885,7 @@ void vdp2_line_window_test()
    u32 line_window_table_address[2] = { 0x50000, 0x52000};
 
    vdp2_set_line_window_tables(line_window_table_address);
-   
+
    for (;;)
    {
       vdp_vsync();
@@ -2081,7 +2092,7 @@ void vdp2_line_scroll_test()
          (v.line_zoom_enable << 3) |
          (v.line_scroll_interval << 4);
 
-      write_line_scroll_table(line_scroll_table_address, counter, 
+      write_line_scroll_table(line_scroll_table_address, counter,
          v.horizontal_line_scroll_enable,
          v.vertical_line_scroll_enable,
          v.line_zoom_enable);
@@ -2298,7 +2309,7 @@ void vdp2_window_test ()
    VDP2_REG_WPEY1 = (224 + 40) / 2;
    nbg0_wnd = 0x83; // enable outside of window 0 for nbg0
    nbg1_wnd = 0x88; // enable inside of window 1 for nbg1
-   VDP2_REG_WCTLA = (nbg1_wnd << 8) | nbg0_wnd;        
+   VDP2_REG_WCTLA = (nbg1_wnd << 8) | nbg0_wnd;
    vdp_disp_on();
 
 //   WorkingQuerry("Is the above graphics displayed?");
@@ -2415,8 +2426,8 @@ void vline(int x1, int y1, int y2, u8 color)
 
 void draw_box(int x1, int y1, int x2, int y2, u8 color)
 {
-   hline(x1, y1, x2, color); 
-   hline(x1, y2, x2, color); 
+   hline(x1, y1, x2, color);
+   hline(x1, y2, x2, color);
    vline(x1, y1, y2, color);
    vline(x2, y1, y2, color);
 }
@@ -2492,9 +2503,9 @@ void load_font_8x8_to_vram_1bpp_to_4bpp(u32 tile_start_address, u32 ram_pointer)
             //get the corresponding bit for the x pos
             u8 bit = (scanline >> (x ^ 7)) & 1;
 
-            if ((x & 1) == 0) 
+            if ((x & 1) == 0)
                bit *= 16;
-            
+
             dest[(chr * 32) + (y * 4) + (x / 2)] |= bit;
          }
       }
@@ -2503,7 +2514,7 @@ void load_font_8x8_to_vram_1bpp_to_4bpp(u32 tile_start_address, u32 ram_pointer)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void write_tile(int x_pos, int y_pos, int palette, int name, u32 base, 
+void write_tile(int x_pos, int y_pos, int palette, int name, u32 base,
    u32 tile_start_address, int special_priority, int special_color)
 {
    volatile u32 *p = (volatile u32 *)(VDP2_RAM + base);
@@ -2515,7 +2526,7 @@ void write_tile(int x_pos, int y_pos, int palette, int name, u32 base,
 
 //////////////////////////////////////////////////////////////////////////////
 
-void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* str, 
+void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* str,
    int palette, u32 base, u32 tile_start_address,int special_priority,
    int special_color)
 {
@@ -2531,8 +2542,8 @@ void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* st
 
       volatile u32 *p = (volatile u32 *)(VDP2_RAM + base);
       //64 cells across in the plane
-      p[(y_pos * 64) + offset] = (special_priority << 29) | 
-         (special_color << 28) | (tile_start_address >> 5) | name | 
+      p[(y_pos * 64) + offset] = (special_priority << 29) |
+         (special_color << 28) | (tile_start_address >> 5) | name |
          (palette << 16);
    }
 }
@@ -2542,7 +2553,7 @@ void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* st
 void write_str_as_pattern_name_data(int x_pos, int y_pos, const char* str,
    int palette, u32 base, u32 tile_start_address)
 {
-   write_str_as_pattern_name_data_special(x_pos, y_pos, str, palette, base, tile_start_address, 0, 0);  
+   write_str_as_pattern_name_data_special(x_pos, y_pos, str, palette, base, tile_start_address, 0, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2965,7 +2976,7 @@ void vdp2_line_color_screen_test()
    //test pattern at bottom of screen
    for (i = 20; i < 28; i += 4)
    {
-      
+
       write_str_as_pattern_name_data(0, i, "\n\n\n\nNBG0\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNBG0\n\n\n\n", 3, 0x000000, tile_address);
       write_str_as_pattern_name_data(0, i + 1, "\n\n\n\nNBG1\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNBG1\n\n\n\n", 3, 0x004000, tile_address);
       write_str_as_pattern_name_data(0, i + 2, "\n\n\n\nNBG2\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNBG2\n\n\n\n", 3, 0x008000, tile_address);
@@ -3291,7 +3302,7 @@ void vdp2_extended_color_calculation_test()
    ra_add_var(&s, &v.line_color_mode_bit,                 "Line color mode bt ", 1);
    ra_add_var(&s, &v.line_color_screen_color_calc_enable, "Line col cal enabl ", 1);
    ra_add_var(&s, &v.line_color_screen_ratio,             "Line color cal rat ", 31);
-   
+
    int presets[][24] =
    {
       //preset 0
@@ -3656,6 +3667,9 @@ void vdp2_sprite_priority_shadow_test()
 
    int tvm = 0;
    int hreso = 0;
+   int lsmd = 0;
+   int die = 0;
+   int dil = 0;
 
    for (;;)
    {
@@ -3663,7 +3677,9 @@ void vdp2_sprite_priority_shadow_test()
 
       VDP1_REG_TVMR = tvm;
 
-      VDP2_REG_TVMD = (1 << 15) | hreso;
+      VDP1_REG_FBCR = ((die&1) << 3) | ((dil&1) << 2);
+
+      VDP2_REG_TVMD = (1 << 15) | (lsmd << 6) | hreso;
 
       if (tvm == 0)
          VDP2_REG_SPCTL = (spccs << 12) | (spccn << 8) | (0 << 5) | 7;
@@ -3760,6 +3776,24 @@ void vdp2_sprite_priority_shadow_test()
       if (per[0].but_push_once & PAD_Y)
       {
          reset_system();
+      }
+
+      if (per[0].but_push_once & PAD_Z)
+      {
+         if (lsmd == 3)
+            lsmd = 0;
+         else
+            lsmd = 3;
+      }
+
+      if (per[0].but_push_once & PAD_UP)
+      {
+         die = !die;
+      }
+
+      if (per[0].but_push_once & PAD_DOWN)
+      {
+         dil = !dil;
       }
 
       if (per[0].but_push_once & PAD_START)
@@ -4111,7 +4145,7 @@ void vdp2_special_priority_test()
    }
 
 #endif
-   
+
    vdp2_basic_tile_scroll_deinit();
 }
 
@@ -4255,7 +4289,7 @@ void vdp2_line_window_test()
    ra_add_array(&s, (int(*)[])v.line_window_enable, 2, "Line window enab #", 1);
 
    for (i = 0; i < 4; i++)
-   { 
+   {
       char str[64] = { 0 };
       sprintf(str, "NBG%d window logic  ", i);
       ra_add_var(&s, &v.nbg[i].window_logic,              str, 1);
@@ -4309,6 +4343,7 @@ void vdp2_line_window_test()
    };
 
    int preset = 0;
+   int lsmd = 0;
 
    ra_do_preset(&s, presets[preset]);
 
@@ -4328,12 +4363,12 @@ void vdp2_line_window_test()
 #else
 
    int hreso = 0;
-   
+
    for (;;)
    {
       vdp_vsync();
 
-      VDP2_REG_TVMD = (1 << 15) | hreso;
+      VDP2_REG_TVMD = (1 << 15) | (lsmd << 6) | hreso;
 
       vdp2_line_window_write_regs(v, line_window_table_address);
 
@@ -4367,6 +4402,14 @@ void vdp2_line_window_test()
       if (per[0].but_push_once & PAD_Y)
       {
          reset_system();
+      }
+
+      if (per[0].but_push_once & PAD_DOWN)
+      {
+         if (lsmd == 3)
+            lsmd = 0;
+         else
+            lsmd = 3;
       }
    }
 
@@ -4550,12 +4593,13 @@ void vdp2_line_scroll_test()
 #else
 
    int hreso = 0;
+   int lsmd = 0
 
    for (;;)
    {
       vdp_vsync();
 
-      VDP2_REG_TVMD = (1 << 15) | hreso;
+      VDP2_REG_TVMD = (1 << 15) | (lsmd << 6) | hreso;
 
       counter++;
 
@@ -4591,6 +4635,14 @@ void vdp2_line_scroll_test()
       if (per[0].but_push_once & PAD_Y)
       {
          reset_system();
+      }
+
+      if (per[0].but_push_once & PAD_C)
+      {
+         if (lsmd == 3)
+            lsmd = 0;
+         else
+            lsmd = 3;
       }
    }
 #endif
@@ -4785,7 +4837,7 @@ void vdp2_window_test ()
    VDP2_REG_WPEY1 = (224 + 40) / 2;
    nbg0_wnd = 0x83; // enable outside of window 0 for nbg0
    nbg1_wnd = 0x88; // enable inside of window 1 for nbg1
-   VDP2_REG_WCTLA = (nbg1_wnd << 8) | nbg0_wnd;        
+   VDP2_REG_WCTLA = (nbg1_wnd << 8) | nbg0_wnd;
    vdp_disp_on();
 
 //   WorkingQuerry("Is the above graphics displayed?");
