@@ -46,6 +46,7 @@ static int autoframeskipenab=0;
 static int throttlespeed=0;
 u64 lastticks=0;
 static int fps;
+int vdp2_is_odd_frame = 0;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -337,7 +338,12 @@ void Vdp2VBlankOUT(void) {
    static u64 onesecondticks = 0;
    static VideoInterface_struct * saved = NULL;
 
-   Vdp2Regs->TVSTAT = (Vdp2Regs->TVSTAT & ~0x0008) | 0x0002;
+   if (vdp2_is_odd_frame)
+      vdp2_is_odd_frame = 0;
+   else
+      vdp2_is_odd_frame = 1;
+
+   Vdp2Regs->TVSTAT = ((Vdp2Regs->TVSTAT & ~0x0008) & ~0x0002) | (vdp2_is_odd_frame << 1);
 
    if (skipnextframe && (! saved))
    {
@@ -429,7 +435,7 @@ void Vdp2VBlankOUT(void) {
    }
 
    ScuSendVBlankOUT();
-   
+
    if (Vdp2Regs->EXTEN & 0x200) // Should be revised for accuracy(should occur only occur on the line it happens at, etc.)
    {
       // Only Latch if EXLTEN is enabled
@@ -487,7 +493,7 @@ u16 FASTCALL Vdp2ReadWord(u32 addr) {
          else
             return (tvstat | 0x8);
       }
-      case 0x006:         
+      case 0x006:
          return Vdp2Regs->VRSIZE;
       case 0x008:
          return Vdp2Regs->HCNT;
@@ -874,7 +880,7 @@ void FASTCALL Vdp2WriteWord(u32 addr, u16 val) {
          return;
       case 0x0E6:
          Vdp2Regs->CRAOFB = val;
-         return;     
+         return;
       case 0x0E8:
          Vdp2Regs->LNCLEN = val;
          return;
@@ -883,7 +889,7 @@ void FASTCALL Vdp2WriteWord(u32 addr, u16 val) {
          return;
       case 0x0EC:
          Vdp2Regs->CCCTL = val;
-         return;     
+         return;
       case 0x0EE:
          Vdp2Regs->SFCCMD = val;
          return;
@@ -970,7 +976,7 @@ void FASTCALL Vdp2WriteWord(u32 addr, u16 val) {
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL Vdp2WriteLong(u32 addr, u32 val) {
-   
+
    Vdp2WriteWord(addr,val>>16);
    Vdp2WriteWord(addr+2,val&0xFFFF);
    return;

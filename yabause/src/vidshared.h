@@ -25,7 +25,7 @@
 #include "vdp2.h"
 #include "debug.h"
 
-typedef struct 
+typedef struct
 {
    short LineScrollValH;
    short LineScrollValV;
@@ -70,29 +70,29 @@ typedef struct
    float dY;
    int screenover;
    int msb;
-   
+
    void FASTCALL (* PlaneAddr)(void *, int);
    u32 charaddr;
    int planew, planew_bits, planeh, planeh_bits;
    int MaxH,MaxV;
 
    float Xsp;
-   float Ysp;   
+   float Ysp;
    float dx;
    float dy;
    float lkx;
-   float lky;   
+   float lky;
    int KtablV;
    int ShiftPaneX;
-   int ShiftPaneY;   
+   int ShiftPaneY;
    int MskH;
    int MskV;
    u32 lineaddr;
    u32 PlaneAddrv[16];
-   
+
 } vdp2rotationparameter_struct;
 
-typedef struct 
+typedef struct
 {
    int  WinShowLine;
     int WinHStart;
@@ -102,7 +102,7 @@ typedef struct
 typedef u32 FASTCALL (*Vdp2ColorRamGetColor_func)(void *, u32 , int);
 typedef vdp2rotationparameter_struct * FASTCALL (*Vdp2GetRParam_func)(void *, int, int);
 
-typedef struct 
+typedef struct
 {
    float vertices[8];
    int cellw, cellh;
@@ -167,22 +167,22 @@ typedef struct
    int isverticalscroll;
    u32 verticalscrolltbl;
    int verticalscrollinc;
-   
+
    // WindowMode
    u8  LogicWin;    // Window Logic AND OR
    u8  bEnWin0;     // Enable Window0
    u8  bEnWin1;     // Enable Window1
    u8  WindowArea0; // Window Area Mode 0
    u8  WindowArea1; // Window Area Mode 1
-   
+
    // Rotate Screen
    vdp2WindowInfo * pWinInfo;
    int WindwAreaMode;
    vdp2rotationparameter_struct * FASTCALL (*GetKValueA)(vdp2rotationparameter_struct*,int);
-   vdp2rotationparameter_struct * FASTCALL (*GetKValueB)(vdp2rotationparameter_struct*,int);   
+   vdp2rotationparameter_struct * FASTCALL (*GetKValueB)(vdp2rotationparameter_struct*,int);
    vdp2rotationparameter_struct * FASTCALL (*GetRParam)(void *, int h,int v);
    u32 LineColorBase;
-   
+
    void (*LoadLineParams)(void *, int line);
 } vdp2draw_struct;
 
@@ -351,7 +351,7 @@ static INLINE void CalcPlaneAddr(vdp2draw_struct *info, u32 tmp)
 {
    int deca = info->planeh + info->planew - 2;
    int multi = info->planeh * info->planew;
-     
+
    //if (Vdp2Regs->VRSIZE & 0x8000)
    //{
       if (info->patterndatasize == 1)
@@ -432,7 +432,7 @@ static INLINE void ReadPlaneSizeR(vdp2rotationparameter_struct *info, u16 reg)
          info->planew_bits = info->planeh_bits = 0;
          break;
    }
-   
+
 
 }
 
@@ -500,7 +500,7 @@ static INLINE void ReadPatternData(vdp2draw_struct *info, u16 pnc, int chctlwh)
 static INLINE void ReadMosaicData(vdp2draw_struct *info, u16 mask)
 {
    if (Vdp2Regs->MZCTL & mask)
-   {  
+   {
       info->mosaicxmask = ((Vdp2Regs->MZCTL >> 8) & 0xF) + 1;
       info->mosaicymask = (Vdp2Regs->MZCTL >> 12) + 1;
    }
@@ -509,7 +509,7 @@ static INLINE void ReadMosaicData(vdp2draw_struct *info, u16 mask)
       info->mosaicxmask = 1;
       info->mosaicymask = 1;
    }
-} 
+}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -570,12 +570,6 @@ static INLINE void ReadWindowCoordinates(int num, clipping_struct * clip)
          break;
    }
 
-   if ((Vdp2Regs->TVMD & 0xC0) == 0xC0)
-   {
-      // Double-density interlace
-      clip->ystart >>= 1;
-      clip->yend >>= 1;
-   }
 }
 
 //////////////////////////////////////////////////////////////////////////////
