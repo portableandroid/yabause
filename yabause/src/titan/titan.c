@@ -454,7 +454,7 @@ Vdp2GetInterlaceInfo(&interlace_line, &line_increment);
 
 void VIDSoftSetNumPriorityThreads(int num)
 {
-   vidsoft_num_priority_threads = num;
+   vidsoft_num_priority_threads = num > 4 ? 4 : num;
 }
 
 #ifdef WANT_VIDSOFT_PRIORITY_THREADING

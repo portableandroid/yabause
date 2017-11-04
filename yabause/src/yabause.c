@@ -43,6 +43,7 @@
 #include "scu.h"
 #include "sh2core.h"
 #include "smpc.h"
+#include "vidsoft.h"
 #include "vdp2.h"
 #include "yui.h"
 #include "bios.h"
@@ -145,6 +146,7 @@ int YabauseInit(yabauseinit_struct *init)
 {
    // Need to set this first, so init routines see it
    yabsys.UseThreads = init->usethreads;
+   yabsys.NumThreads = init->numthreads;
 
    // Initialize both cpu's
    if (SH2Init(init->sh2coretype) != 0)
@@ -299,6 +301,20 @@ int YabauseInit(yabauseinit_struct *init)
    GdbStubInit(MSH2, 43434);
 #endif
 
+   if (yabsys.UseThreads)
+   {
+      int num = yabsys.NumThreads < 1 ? 1 : yabsys.NumThreads;
+      VIDSoftSetVdp1ThreadEnable(num == 1 ? 1 : 0);
+      VIDSoftSetNumLayerThreads(num);
+      VIDSoftSetNumPriorityThreads(num);
+   }
+   else
+   {
+      VIDSoftSetVdp1ThreadEnable(0);
+      VIDSoftSetNumLayerThreads(1);
+      VIDSoftSetNumPriorityThreads(1);
+   }
+
    return 0;
 }
 
@@ -411,7 +427,7 @@ void YabauseResetButton(void) {
 int YabauseExec(void) {
 
 	//automatically advance lag frames, this should be optional later
-	if (FrameAdvanceVariable > 0 && LagFrameFlag == 1){ 
+	if (FrameAdvanceVariable > 0 && LagFrameFlag == 1){
 		FrameAdvanceVariable = NeedAdvance; //advance a frame
 		YabauseEmulate();
 		FrameAdvanceVariable = Paused; //pause next time
@@ -422,15 +438,15 @@ int YabauseExec(void) {
 		ScspMuteAudio(SCSP_MUTE_SYSTEM);
 		return(0);
 	}
-  
+
 	if (FrameAdvanceVariable == NeedAdvance){  //advance a frame
 		FrameAdvanceVariable = Paused; //pause next time
 		ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
 		YabauseEmulate();
 	}
-	
+
 	if (FrameAdvanceVariable == RunNormal ) { //run normally
-		ScspUnMuteAudio(SCSP_MUTE_SYSTEM);	
+		ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
 		YabauseEmulate();
 	}
 	return 0;
@@ -451,7 +467,7 @@ int YabauseEmulate(void) {
 #ifndef USE_SCSP2
    unsigned int m68kcycles;       // Integral M68k cycles per call
    unsigned int m68kcenticycles;  // 1/100 M68k cycles per call
-   
+
    if (yabsys.IsPal)
    {
       /* 11.2896MHz / 50Hz / 313 lines / 10 calls/line = 72.20 cycles/call */
@@ -689,7 +705,7 @@ u64 YabauseGetTicks(void) {
    return ticks;
 #elif defined(_arch_dreamcast)
    return (u64) timer_ms_gettime64();
-#elif defined(GEKKO)  
+#elif defined(GEKKO)
    return gettime();
 #elif defined(PSP)
    return sceKernelGetSystemTimeWide();
@@ -792,7 +808,7 @@ void YabauseSpeedySetup(void)
    Cs2Area->reg.CR1 = (Cs2Area->status << 8) | ((Cs2Area->options & 0xF) << 4) | (Cs2Area->repcnt & 0xF);
    Cs2Area->reg.CR2 = (Cs2Area->ctrladdr << 8) | Cs2Area->track;
    Cs2Area->reg.CR3 = (Cs2Area->index << 8) | ((Cs2Area->FAD >> 16) & 0xFF);
-   Cs2Area->reg.CR4 = (u16) Cs2Area->FAD; 
+   Cs2Area->reg.CR4 = (u16) Cs2Area->FAD;
    Cs2Area->satauth = 4;
 
    // Set Master SH2 registers accordingly
@@ -889,7 +905,7 @@ int YabauseQuickLoadGame(void)
              (buffer[0xE2] << 8) |
               buffer[0xE3];
       blocks = size >> 11;
-      if ((size % 2048) != 0) 
+      if ((size % 2048) != 0)
          blocks++;
 
 
