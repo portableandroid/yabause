@@ -708,7 +708,7 @@ void FASTCALL MappedMemoryWriteByte(u32 addr, u8 val)
             // Onchip modules
             addr &= 0x1FF;
             OnchipWriteByte(addr, val);
-            return; 
+            return;
          }
          else if (addr >= 0xFFFF8000 && addr < 0xFFFFC000)
          {
@@ -1222,6 +1222,7 @@ int YabLoadStateStream(FILE *fp)
    int movieposition;
    int temp;
    u32 temp32;
+   int test_endian;
 
    headersize = 0xC;
    check.done = 0;
@@ -1259,10 +1260,11 @@ int YabLoadStateStream(FILE *fp)
    }
 
 #ifdef WORDS_BIGENDIAN
-   if (endian == 1)
+   test_endian = endian == 1;
 #else
-   if (endian == 0)
+   test_endian = endian == 0;
 #endif
+   if (test_endian)
    {
       // should setup reading so it's byte-swapped
       YabSetError(YAB_ERR_OTHER, (void *)"Load State byteswapping not supported");
@@ -1281,7 +1283,7 @@ int YabLoadStateStream(FILE *fp)
    // Verify version here
 
    ScspMuteAudio(SCSP_MUTE_SYSTEM);
-   
+
    if (StateCheckRetrieveHeader(fp, "CART", &version, &chunksize) != 0)
    {
       // Revert back to old state here
@@ -1530,7 +1532,7 @@ static int SearchString(u32 startaddr, u32 endaddr, int searchtype,
          // Calculate buffer length and read values into table
          buflen = 0;
          for (text=strtok((char *)searchtext, " ,"); text != NULL; text=strtok(NULL, " ,"))
-         {            
+         {
             buf32[buflen] = strtoul(text, NULL, 0);
             buflen++;
          }
@@ -1538,7 +1540,7 @@ static int SearchString(u32 startaddr, u32 endaddr, int searchtype,
 
          break;
       }
-   }    
+   }
 
    addr = startaddr;
    counter = 0;
@@ -1578,7 +1580,7 @@ static int SearchString(u32 startaddr, u32 endaddr, int searchtype,
                // figure out the diff
                diff = (int)val2 - (int)val;
 
-               // see if there's a match             
+               // see if there's a match
                if (((int)buf32[j] - (int)buf32[j-1]) != diff)
                   break;
 
@@ -1607,7 +1609,7 @@ static int SearchString(u32 startaddr, u32 endaddr, int searchtype,
                // figure out the diff
                diff = (int)val2 - (int)val;
 
-               // see if there's a match             
+               // see if there's a match
                if (((int)buf32[j] - (int)buf32[j-1]) != diff)
                   break;
 
@@ -1620,7 +1622,7 @@ static int SearchString(u32 startaddr, u32 endaddr, int searchtype,
             addr+=2;
             break;
          }
-      }    
+      }
 
       if (addr > endaddr || numresults >= maxresults[0])
          break;
@@ -1664,7 +1666,7 @@ result_struct *MappedMemorySearch(u32 startaddr, u32 endaddr, int searchtype,
 
          return results;
       }
-      case SEARCHHEX:         
+      case SEARCHHEX:
          sscanf(searchstr, "%08lx", &searchval);
          break;
       case SEARCHUNSIGNED:
@@ -1675,7 +1677,7 @@ result_struct *MappedMemorySearch(u32 startaddr, u32 endaddr, int searchtype,
          searchval = (unsigned long)strtol(searchstr, NULL, 10);
          issigned = 1;
          break;
-   }   
+   }
 
    if (prevresults)
    {
@@ -1719,7 +1721,7 @@ result_struct *MappedMemorySearch(u32 startaddr, u32 endaddr, int searchtype,
                 return results;
              break;
           default:
-             maxresults[0] = 0; 
+             maxresults[0] = 0;
              if (results)
                 free(results);
              return NULL;
