@@ -38,6 +38,7 @@ int game_height;
 static bool hle_bios_force = false;
 static bool frameskip_enable = false;
 static int addon_cart_type = CART_NONE;
+static int numthreads = 1;
 
 struct retro_perf_callback perf_cb;
 retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
@@ -58,6 +59,7 @@ void retro_set_environment(retro_environment_t cb)
       { "yabause_frameskip", "Frameskip; disabled|enabled" },
       { "yabause_force_hle_bios", "Force HLE BIOS (restart); disabled|enabled" },
       { "yabause_addon_cart", "Addon Cartridge (restart); none|1M_ram|4M_ram" },
+      { "yabause_numthreads", "Number of Threads (restart); 1|2|4|8|16|32" },
       { NULL, NULL },
    };
 
@@ -583,6 +585,25 @@ static void check_variables(void)
       else if (strcmp(var.value, "4M_ram") == 0 && addon_cart_type != CART_DRAM32MBIT)
          addon_cart_type = CART_DRAM32MBIT;
    }
+
+   var.key = "yabause_numthreads";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "1") == 0 && numthreads != 1)
+         numthreads = 1;
+      else if (strcmp(var.value, "2") == 0 && numthreads != 2)
+         numthreads = 2;
+      else if (strcmp(var.value, "4") == 0 && numthreads != 4)
+         numthreads = 4;
+      else if (strcmp(var.value, "8") == 0 && numthreads != 8)
+         numthreads = 8;
+      else if (strcmp(var.value, "16") == 0 && numthreads != 16)
+         numthreads = 16;
+      else if (strcmp(var.value, "32") == 0 && numthreads != 32)
+         numthreads = 32;
+   }
+
 }
 
 static int does_file_exist(const char *filename)
@@ -868,6 +889,7 @@ bool retro_load_game(const struct retro_game_info *info)
    yinit.basetime        = 0;
 #ifdef HAVE_THREADS
    yinit.usethreads      = 1;
+   yinit.numthreads      = numthreads;
 #else
    yinit.usethreads      = 0;
 #endif

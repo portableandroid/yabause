@@ -13,7 +13,7 @@ set(yabause_HEADERS
 	cdbase.h cheat.h coffelf.h core.h cs0.h cs1.h cs2.h
 	debug.h
 	error.h
-	japmodem.h 
+	japmodem.h
 	m68kcore.h m68kd.h memory.h movie.h
 	netlink.h
 	osdcore.h
@@ -281,7 +281,7 @@ if (MSVC)
 		set(DDK_DIR "$ENV{SYSTEMDRIVE}/WINDDK/7600.16385.0/")
         endif (EXISTS "$ENV{SYSTEMDRIVE}/WINDDK/3790.1830/")
 
-	add_definitions(-DHAVE_C99_VARIADIC_MACROS -D_CRT_SECURE_NO_WARNINGS -DC68K_NO_JUMP_TABLE 
+	add_definitions(-DHAVE_C99_VARIADIC_MACROS -D_CRT_SECURE_NO_WARNINGS -DC68K_NO_JUMP_TABLE
 			-D_UNICODE -DUNICODE)
 endif (MSVC)
 
@@ -374,7 +374,7 @@ if (WIN32)
 	if (YAB_NETWORK OR YAB_WANT_GDBSTUB)
     	# Add Winsock if necessary
 		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} "wsock32")
-		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} "ws2_32")        
+		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} "ws2_32")
 	endif()
 
 endif (WIN32)
@@ -481,7 +481,7 @@ if (YAB_WANT_GDBSTUB)
 endif()
 
 # *DEBUG
-set(YAB_DEBUG "" CACHE STRING "List of enabled debug information") 
+set(YAB_DEBUG "" CACHE STRING "List of enabled debug information")
 foreach(DEBUG IN LISTS YAB_DEBUG)
 	if (${DEBUG} STREQUAL "main")
 		add_definitions(-DDEBUG=1)
@@ -597,45 +597,17 @@ if (MSVC)
 endif ()
 
 if (NOT ANDROID)
-    option(YAB_WANT_VIDSOFT_RENDER_THREADING "Use threads for vidsoft render" ON)
-    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layer" ON)
-    if (YAB_WANT_VIDSOFT_RENDER_THREADING OR YAB_WANT_VIDSOFT_LAYER_THREADING)
+    option(YAB_WANT_VIDSOFT_PRIORITY_THREADING "Use threads for vidsoft priority" ON)
+    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layers" ON)
 
-        find_package(OpenMP)
-
-        if (OPENMP_FOUND)
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-            if (YAB_WANT_VIDSOFT_RENDER_THREADING)
-                add_definitions(-DWANT_VIDSOFT_RENDER_THREADING)
-                message(STATUS "Using vidsoft render threading")
-            endif()
-            if (YAB_WANT_VIDSOFT_LAYER_THREADING)
-                add_definitions(-DWANT_VIDSOFT_LAYER_THREADING)
-                message(STATUS "Using vidsoft layer threading")
-            endif()
-        endif()
+    if (YAB_WANT_VIDSOFT_PRIORITY_THREADING)
+        add_definitions(-DWANT_VIDSOFT_PRIORITY_THREADING)
+        message(STATUS "Using vidsoft priority threading")
     endif()
 
-    option(YAB_WANT_VIDSOFT_RBG0_THREADING "Use threads for RBG0" OFF)
-    option(YAB_WANT_VIDSOFT_NBG0_THREADING "Use threads for NBG0" OFF)
-
-    if (YAB_WANT_VIDSOFT_RBG0_THREADING)
-        if(YAB_WANT_VIDSOFT_RENDER_THREADING OR YAB_WANT_VIDSOFT_LAYER_THREADING)
-            message(STATUS "RBG0 threading is incompatible with OpenMP. RBG0 threading not enabled.")
-        else()
-            add_definitions(-DWANT_VIDSOFT_RBG0_THREADING)
-            message(STATUS "Using vidsoft RBG0 threading")
-        endif()
-    endif()
-
-    if (YAB_WANT_VIDSOFT_NBG0_THREADING)
-        if(YAB_WANT_VIDSOFT_RENDER_THREADING OR YAB_WANT_VIDSOFT_LAYER_THREADING)
-            message(STATUS "NBG0 threading is incompatible with OpenMP. NBG0 threading not enabled.")
-        else()
-            add_definitions(-DWANT_VIDSOFT_NBG0_THREADING)
-            message(STATUS "Using vidsoft NBG0 threading")
-        endif()
+    if (YAB_WANT_VIDSOFT_LAYER_THREADING)
+        add_definitions(-DWANT_VIDSOFT_LAYER_THREADING)
+        message(STATUS "Using vidsoft layer threading")
     endif()
 endif()
 
