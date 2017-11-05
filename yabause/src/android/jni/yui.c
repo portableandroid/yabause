@@ -60,17 +60,17 @@ static char mpegpath[256] = "\0";
 static char cartpath[256] = "\0";
 
 EGLDisplay g_Display = EGL_NO_DISPLAY;
-EGLSurface g_Surface = EGL_NO_SURFACE; 
-EGLContext g_Context = EGL_NO_CONTEXT; 
+EGLSurface g_Surface = EGL_NO_SURFACE;
+EGLContext g_Context = EGL_NO_CONTEXT;
 GLuint g_FrameBuffer = 0;
 GLuint g_VertexBuffer = 0;
 int g_buf_width = -1;
 int g_buf_height = -1;
 pthread_mutex_t g_mtxGlLock = PTHREAD_MUTEX_INITIALIZER;
-float vertices [] = { 
+float vertices [] = {
    0, 0, 0, 0,
-   320, 0, 0, 0, 
-   320, 224, 0, 0, 
+   320, 0, 0, 0,
+   320, 224, 0, 0,
    0, 224, 0, 0
 };
 
@@ -131,7 +131,7 @@ int yprintf( const char * fmt, ... )
    va_start(ap, fmt);
    int result = __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, fmt, ap);
    va_end(ap);
-   return result;   
+   return result;
 }
 
 const char * GetBiosPath()
@@ -242,10 +242,10 @@ void YuiSwapBuffers(void)
 {
    int buf_width, buf_height;
    int error;
-   
-   
+
+
    pthread_mutex_lock(&g_mtxGlLock);
-   if( g_Display == EGL_NO_DISPLAY ) 
+   if( g_Display == EGL_NO_DISPLAY )
    {
       pthread_mutex_unlock(&g_mtxGlLock);
       return;
@@ -256,12 +256,12 @@ void YuiSwapBuffers(void)
          yprintf( "eglMakeCurrent fail %04x",eglGetError());
          pthread_mutex_unlock(&g_mtxGlLock);
          return;
-   }   
-      
+   }
+
    glClearColor( 0.0f,0.0f,0.0f,1.0f);
    glClear(GL_COLOR_BUFFER_BIT);
 
-   
+
    if( g_FrameBuffer == 0 )
    {
       glEnable(GL_TEXTURE_2D);
@@ -269,7 +269,7 @@ void YuiSwapBuffers(void)
       glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);   
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
       glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
@@ -282,12 +282,12 @@ void YuiSwapBuffers(void)
    }else{
       glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
    }
-   
+
 
    VIDCore->GetGlSize(&buf_width, &buf_height);
    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,dispbuffer);
-   
-   
+
+
    if( g_VertexBuffer == 0 )
    {
       glGenBuffers(1, &g_VertexBuffer);
@@ -298,27 +298,27 @@ void YuiSwapBuffers(void)
       {
          yprintf("gl error %d", error );
          return;
-      }      
+      }
    }else{
       glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
    }
-  
+
   if( buf_width != g_buf_width ||  buf_height != g_buf_height )
   {
      vertices[6]=vertices[10]=(float)buf_width/1024.f;
      vertices[11]=vertices[15]=(float)buf_height/1024.f;
      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),vertices,GL_STATIC_DRAW);
      glVertexPointer(2, GL_FLOAT, sizeof(float)*4, 0);
-     glTexCoordPointer(2, GL_FLOAT, sizeof(float)*4, (void*)(sizeof(float)*2));   
+     glTexCoordPointer(2, GL_FLOAT, sizeof(float)*4, (void*)(sizeof(float)*2));
      glEnableClientState(GL_VERTEX_ARRAY);
      glEnableClientState(GL_TEXTURE_COORD_ARRAY);
      g_buf_width  = buf_width;
      g_buf_height = buf_height;
   }
-    
+
    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
    eglSwapBuffers(g_Display,g_Surface);
-   
+
    pthread_mutex_unlock(&g_mtxGlLock);
 }
 
@@ -335,22 +335,22 @@ int Java_org_yabause_android_YabauseRunnable_initViewport( int width, int height
 
    eglQuerySurface(g_Display,g_Surface,EGL_WIDTH,&swidth);
    eglQuerySurface(g_Display,g_Surface,EGL_HEIGHT,&sheight);
-   
+
    glViewport(0,0,swidth,sheight);
-   
+
    glMatrixMode(GL_PROJECTION);
    glLoadIdentity();
    glOrthof(0, 320, 224, 0, 1, 0);
-   
+
    glMatrixMode(GL_MODELVIEW);
    glLoadIdentity();
 
    glMatrixMode(GL_TEXTURE);
    glLoadIdentity();
-   
+
    glDisable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-   
+
    yprintf(glGetString(GL_VENDOR));
    yprintf(glGetString(GL_RENDERER));
    yprintf(glGetString(GL_VERSION));
@@ -373,34 +373,34 @@ int initEGLFunc()
       yprintf(dlerror());
       return -1;
    }
-   
+
    eglGetCurrentDisplay = dlsym(handle, "eglGetCurrentDisplay");
    if( eglGetCurrentDisplay == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglGetCurrentSurface = dlsym(handle, "eglGetCurrentSurface");
    if( eglGetCurrentSurface == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglGetCurrentContext = dlsym(handle, "eglGetCurrentContext");
    if( eglGetCurrentContext == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglQuerySurface      = dlsym(handle, "eglQuerySurface");
    if( eglQuerySurface == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglSwapInterval      = dlsym(handle, "eglSwapInterval");
    if( eglSwapInterval == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglMakeCurrent       = dlsym(handle, "eglMakeCurrent");
    if( eglMakeCurrent == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglSwapBuffers       = dlsym(handle, "eglSwapBuffers");
    if( eglSwapBuffers == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglQueryString       = dlsym(handle, "eglQueryString");
    if( eglQueryString == NULL){ yprintf(dlerror()); return -1; }
-   
+
    eglGetError          = dlsym(handle, "eglGetError");
    if( eglGetError == NULL){ yprintf(dlerror()); return -1; }
-   
+
    return 0;
 }
 #else
@@ -412,12 +412,12 @@ int initEGLFunc()
 
 int Java_org_yabause_android_YabauseRunnable_lockGL()
 {
-   pthread_mutex_lock(&g_mtxGlLock);  
+   pthread_mutex_lock(&g_mtxGlLock);
 }
 
 int Java_org_yabause_android_YabauseRunnable_unlockGL()
 {
-   pthread_mutex_unlock(&g_mtxGlLock);  
+   pthread_mutex_unlock(&g_mtxGlLock);
 }
 
 
@@ -427,10 +427,12 @@ Java_org_yabause_android_YabauseRunnable_init( JNIEnv* env, jobject obj, jobject
     yabauseinit_struct yinit;
     int res;
     void * padbits;
-    
+
     if( initEGLFunc() == -1 ) return -1;
 
     yabause = (*env)->NewGlobalRef(env, yab);
+
+    memset(&yinit, 0, sizeof(yabauseinit_struct));
 
     yinit.m68kcoretype = M68KCORE_C68K;
     yinit.percoretype = PERCORE_DUMMY;
