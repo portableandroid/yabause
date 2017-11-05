@@ -58,7 +58,7 @@ extern VideoInterface_struct *VIDCoreList[];
 void qAppendLog( const char* s )
 {
 	UIYabause* ui = QtYabause::mainWindow( false );
-	
+
 	if ( ui ) {
 		ui->appendLog( s );
 	}
@@ -165,7 +165,7 @@ UIYabause::UIYabause( QWidget* parent )
 	mouseSensitivity = vs->value( "Input/GunMouseSensitivity", 100 ).toInt();
 	showMenuBarHeight = menubar->height();
 	translations = QtYabause::getTranslationList();
-	
+
 	VIDSoftSetBilinear(QtYabause::settings()->value( "Video/Bilinear", false ).toBool());
 }
 
@@ -177,7 +177,7 @@ UIYabause::~UIYabause()
 void UIYabause::showEvent( QShowEvent* e )
 {
 	QMainWindow::showEvent( e );
-	
+
 	if ( !mInit )
 	{
 		LogStart();
@@ -218,12 +218,12 @@ void UIYabause::keyReleaseEvent( QKeyEvent* e )
 { PerKeyUp( e->key() ); }
 
 void UIYabause::mousePressEvent( QMouseEvent* e )
-{ 
+{
 	PerKeyDown( (1 << 31) | e->button() );
 }
 
 void UIYabause::mouseReleaseEvent( QMouseEvent* e )
-{ 
+{
 	PerKeyUp( (1 << 31) | e->button() );
 }
 
@@ -240,19 +240,19 @@ void UIYabause::cursorRestore()
 }
 
 void UIYabause::mouseMoveEvent( QMouseEvent* e )
-{ 
+{
 	int x = (e->x()-oldMouseX)*mouseXRatio;
 	int y = (oldMouseY-e->y())*mouseYRatio;
 	int minAdj = mouseSensitivity/100;
 
-	// If minimum movement is less than x, wait until next pass to apply	
+	// If minimum movement is less than x, wait until next pass to apply
 	if (abs(x) < minAdj) x = 0;
 	if (abs(y) < minAdj) y = 0;
 
 	PerAxisMove((1 << 30), x, y);
 
 	oldMouseX = oldMouseX+(x/mouseXRatio);
-	oldMouseY = oldMouseY-(y/mouseYRatio);	
+	oldMouseY = oldMouseY-(y/mouseYRatio);
 
 	VolatileSettings* vs = QtYabause::volatileSettings();
 
@@ -306,8 +306,8 @@ void UIYabause::resizeEvent( QResizeEvent* event )
 }
 
 void UIYabause::swapBuffers()
-{ 
-	mYabauseGL->swapBuffers(); 
+{
+	mYabauseGL->swapBuffers();
 	mYabauseGL->makeCurrent();
 }
 
@@ -315,7 +315,7 @@ void UIYabause::appendLog( const char* s )
 {
 	if (! mCanLog)
 	{
-		qWarning( s );
+		qWarning( "%s", s );
 		return;
 	}
 
@@ -369,7 +369,7 @@ void UIYabause::sizeRequested( const QSize& s )
 	if (vs->value( "View/Toolbar" ).toInt() != BD_ALWAYSHIDE)
 		height += toolBar->height();
 
-	resize( width, height ); 
+	resize( width, height );
 }
 
 void UIYabause::fixAspectRatio( int width )
@@ -490,9 +490,9 @@ void UIYabause::toggleFullscreen( int width, int height, bool f, int videoFormat
 		if (freq < 0)
 			return;
 
-		dmScreenSettings.dmSize = sizeof (dmScreenSettings);   
+		dmScreenSettings.dmSize = sizeof (dmScreenSettings);
 		dmScreenSettings.dmPelsWidth = width;
-		dmScreenSettings.dmPelsHeight = height;    
+		dmScreenSettings.dmPelsHeight = height;
 		dmScreenSettings.dmBitsPerPel = 32;
 		dmScreenSettings.dmDisplayFrequency = freq;
 		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
@@ -545,7 +545,7 @@ void UIYabause::fullscreenRequested( bool f )
 		setMaximumSize( QWIDGETSIZE_MAX, QWIDGETSIZE_MAX );
 		setMinimumSize( 0,0 );
 
-		toggleFullscreen(vs->value("Video/FullscreenWidth").toInt(), vs->value("Video/FullscreenHeight").toInt(), 
+		toggleFullscreen(vs->value("Video/FullscreenWidth").toInt(), vs->value("Video/FullscreenHeight").toInt(),
 						f, vs->value("Video/VideoFormat").toInt());
 
 		showFullScreen();
@@ -632,7 +632,7 @@ void UIYabause::on_aFileSettings_triggered()
 		aEmulationFrameSkipLimiter->setChecked( vs->value( "General/EnableFrameSkipLimiter" ).toBool() );
 		aViewFPS->setChecked( vs->value( "General/ShowFPS" ).toBool() );
 		mouseSensitivity = vs->value( "Input/GunMouseSensitivity" ).toInt();
-		
+
 		if(isFullScreen())
 		{
 			if ( vs->value( "View/Menubar" ).toInt() == BD_HIDEFS || vs->value( "View/Menubar" ).toInt() == BD_ALWAYSHIDE )
@@ -658,7 +658,7 @@ void UIYabause::on_aFileSettings_triggered()
 				toolBar->show();
 		}
 
-		
+
 		//only reset if bios, region, cart,  back up, mpeg, sh2, m68k are changed
 		Settings *ss = (QtYabause::settings());
 		QHash<QString, QVariant> newhash;
@@ -694,20 +694,20 @@ void UIYabause::on_aFileSettings_triggered()
 #endif
 		if(newhash["Video/VideoCore"] != hash["Video/VideoCore"])
 			on_cbVideoDriver_currentIndexChanged(newhash["Video/VideoCore"].toInt());
-		
+
 		if(newhash["General/ShowFPS"] != hash["General/ShowFPS"])
 			SetOSDToggle(newhash["General/ShowFPS"].toBool());
-		
+
 		if (newhash["Sound/SoundCore"] != hash["Sound/SoundCore"])
 			ScspChangeSoundCore(newhash["Sound/SoundCore"].toInt());
-		
+
 		if (newhash["Video/WindowWidth"] != hash["Video/WindowWidth"] || newhash["Video/WindowHeight"] != hash["Video/WindowHeight"] ||
-          newhash["View/Menubar"] != hash["View/Menubar"] || newhash["View/Toolbar"] != hash["View/Toolbar"] || 
+          newhash["View/Menubar"] != hash["View/Menubar"] || newhash["View/Toolbar"] != hash["View/Toolbar"] ||
 			 newhash["Input/GunMouseSensitivity"] != hash["Input/GunMouseSensitivity"])
 			sizeRequested(QSize(newhash["Video/WindowWidth"].toInt(),newhash["Video/WindowHeight"].toInt()));
 		fixAspectRatio( rect().width() );
-		
-		if (newhash["Video/FullscreenWidth"] != hash["Video/FullscreenWidth"] || 
+
+		if (newhash["Video/FullscreenWidth"] != hash["Video/FullscreenWidth"] ||
 			newhash["Video/FullscreenHeight"] != hash["Video/FullscreenHeight"] ||
 			newhash["Video/Fullscreen"] != hash["Video/Fullscreen"])
 		{
@@ -716,7 +716,7 @@ void UIYabause::on_aFileSettings_triggered()
 				fullscreenRequested( false );
 			fullscreenRequested( f );
 		}
-		
+
 		if (newhash["Video/VideoFormat"] != hash["Video/VideoFormat"])
 			YabauseSetVideoFormat(newhash["Video/VideoFormat"].toInt());
 
@@ -734,15 +734,15 @@ void UIYabause::on_aFileOpenISO_triggered()
 		VolatileSettings* vs = QtYabause::volatileSettings();
 		const int currentCDCore = vs->value( "General/CdRom" ).toInt();
 		const QString currentCdRomISO = vs->value( "General/CdRomISO" ).toString();
-		
+
 		QtYabause::settings()->setValue( "Recents/ISOs", fn );
-		
+
 		vs->setValue( "autostart", false );
 		vs->setValue( "General/CdRom", ISOCD.id );
 		vs->setValue( "General/CdRomISO", fn );
-		
+
 		mYabauseThread->pauseEmulation( false, true );
-		
+
 		refreshStatesActions();
 	}
 }
@@ -752,7 +752,7 @@ void UIYabause::on_aFileOpenCDRom_triggered()
 	YabauseLocker locker( mYabauseThread );
 	QStringList list = getCdDriveList();
 	int current = list.indexOf(QtYabause::volatileSettings()->value( "Recents/CDs").toString());
-	QString fn = QInputDialog::getItem(this, QtYabause::translate("Open CD Rom"), 
+	QString fn = QInputDialog::getItem(this, QtYabause::translate("Open CD Rom"),
 													QtYabause::translate("Choose a cdrom drive/mount point") + ":",
 													list, current, false);
 	if (!fn.isEmpty())
@@ -832,7 +832,7 @@ void UIYabause::on_aFileScreenshot_triggered()
 
 	// take screenshot of gl view
 	QImage screenshot = mYabauseGL->grabFrameBuffer();
-	
+
 	// request a file to save to to user
 	QString s = CommonDialogs::getSaveFileName( QString(), QtYabause::translate( "Choose a location for your screenshot" ), filters.join( ";;" ) );
 
@@ -840,7 +840,7 @@ void UIYabause::on_aFileScreenshot_triggered()
 	QFileInfo qfi( s );
 	if ( qfi.suffix().isEmpty() )
 		s += ".png";
-	
+
 	// write image if ok
 	if ( !s.isEmpty() )
 	{
@@ -908,7 +908,7 @@ void UIYabause::on_aToolsCheatSearch_triggered()
 {
    YabauseLocker locker( mYabauseThread );
    UICheatSearch cs(this, &search, searchType);
-      
+
    cs.exec();
 
    search = *cs.getSearchVariables( &searchType);
@@ -1060,7 +1060,7 @@ void UIYabause::on_aHelpAbout_triggered()
 
 void UIYabause::on_aSound_triggered()
 {
-	// show volume widget	
+	// show volume widget
 	sVolume->setValue(QtYabause::volatileSettings()->value( "Sound/Volume").toInt());
 	QWidget* ab = toolBar->widgetForAction( aSound );
 	fSound->move( ab->mapToGlobal( ab->rect().bottomLeft() ) );
@@ -1099,8 +1099,8 @@ void UIYabause::on_cbSound_toggled( bool toggled )
 }
 
 void UIYabause::on_sVolume_valueChanged( int value )
-{ 
-	ScspSetVolume( value ); 
+{
+	ScspSetVolume( value );
 	Settings* vs = QtYabause::settings();
 	vs->setValue("Sound/Volume", value );
 }
@@ -1118,7 +1118,7 @@ void UIYabause::on_cbVideoDriver_currentIndexChanged( int id )
 void UIYabause::pause( bool paused )
 {
 	mYabauseGL->updateView();
-	
+
 	aEmulationRun->setEnabled( paused );
 	aEmulationPause->setEnabled( !paused );
 	aEmulationReset->setEnabled( !paused );

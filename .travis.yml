@@ -4,7 +4,7 @@ matrix:
     # linux gcc
     - compiler: gcc
       env: testenv="linux gcc"
-      
+
     # linux clang
     - compiler: clang
       env: testenv="linux clang"
@@ -73,5 +73,5 @@ before_install:
   - cd build
 
 script:
-  - cmake ..
+  - cmake -DYAB_FORCE_SECURE_STRINGS=ON ..
   - make
