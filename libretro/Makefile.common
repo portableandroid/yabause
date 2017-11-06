@@ -16,6 +16,7 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/cs2.c \
 	$(SOURCE_DIR)/debug.c \
 	$(SOURCE_DIR)/error.c \
+	$(SOURCE_DIR)/gameinfo.c \
 	$(SOURCE_DIR)/japmodem.c \
 	$(SOURCE_DIR)/m68kc68k.c \
 	$(SOURCE_DIR)/m68kcore.c \
