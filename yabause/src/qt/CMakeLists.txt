@@ -4,11 +4,11 @@ yab_port_start()
 
 option(YAB_USE_QT5 "Use Qt 5 if available." ON)
 
-if(YAB_USE_QT5) 
+if(YAB_USE_QT5)
 	find_package(Qt5 COMPONENTS Widgets QUIET)
 endif()
 
-if(Qt5_FOUND) 
+if(Qt5_FOUND)
 	message(STATUS "Qt5 Found")
 
 	if( YAB_WANT_OPENGL )
@@ -16,7 +16,7 @@ if(Qt5_FOUND)
 	endif()
 
 	include_directories(${Qt5Widgets_INCLUDE_DIRS})
-	add_definitions(${Qt5Widgets_DEFINITIONS}) 
+	add_definitions(${Qt5Widgets_DEFINITIONS})
 
 	if (WIN32)
         	find_package(Qt5Core)
@@ -27,7 +27,7 @@ if(Qt5_FOUND)
     # Since Qt5's cmake script doesn't set it, we will have to
     SET(QT_BINARY_DIR "${_qt5Core_install_prefix}/bin")
     SET(QT_PLUGINS_DIR "${_qt5Core_install_prefix}/plugins")
-else() 
+else()
 	set( QT_USE_QTCORE TRUE )
 	set( QT_USE_QTGUI TRUE )
 	set ( QT_USE_QTMULTIMEDIA TRUE )
@@ -37,7 +37,7 @@ else()
 	if (WIN32)
 		set( QT_USE_QTMAIN TRUE )
 	endif()
-	
+
 	find_package(Qt4)
 
 	if (NOT QT4_FOUND)
@@ -53,7 +53,7 @@ else()
 
 	# dunno what it does exactly ... but seem required
 	include( ${QT_USE_FILE} )
-endif() 
+endif()
 
 # qt resources file
 set( yabause_qt_RESOURCES resources/resources.qrc )
@@ -84,10 +84,10 @@ set( yabause_qt_FORMS
 	ui/UICheatSearch.ui
 	ui/UIBackupRam.ui
 	ui/UIPortManager.ui
-	ui/UIPadSetting.ui 
-	ui/UI3DControlPadSetting.ui 
+	ui/UIPadSetting.ui
+	ui/UI3DControlPadSetting.ui
 	ui/UIGunSetting.ui
-	ui/UIMouseSetting.ui 
+	ui/UIMouseSetting.ui
     ui/UIDebugCPU.ui
     ui/UIDebugSCSP.ui
     ui/UIDebugSCSPDSP.ui
@@ -95,8 +95,8 @@ set( yabause_qt_FORMS
     ui/UIDebugVDP2.ui
     ui/UIDebugVDP2Viewer.ui
     ui/UIHexInput.ui
-    ui/UIMemoryTransfer.ui 
-    ui/UIMemoryEditor.ui 
+    ui/UIMemoryTransfer.ui
+    ui/UIMemoryEditor.ui
     ui/UIMemorySearch.ui )
 
 # pure C headers
@@ -190,15 +190,15 @@ else()
 	set( yabause_qt_SOURCES ${yabause_qt_SOURCES} YabauseSoftGL.cpp )
 endif()
 
-if(Qt5_FOUND) 
+if(Qt5_FOUND)
 	QT5_ADD_RESOURCES( yabause_qt_RCC_RESOURCES ${yabause_qt_RESOURCES} )
 	QT5_WRAP_UI( yabause_qt_UI_FORMS ${yabause_qt_FORMS} )
 	QT5_WRAP_CPP( yabause_qt_MOC_SOURCES ${yabause_qt_MOC_HEADERS} )
-else() 
+else()
 	QT4_ADD_RESOURCES( yabause_qt_RCC_RESOURCES ${yabause_qt_RESOURCES} )
 	QT4_WRAP_UI( yabause_qt_UI_FORMS ${yabause_qt_FORMS} )
 	QT4_WRAP_CPP( yabause_qt_MOC_SOURCES ${yabause_qt_MOC_HEADERS} )
-endif() 
+endif()
 
 set( yabause_qt_SOURCES ${yabause_qt_SOURCES} resources/icons/yabause.icns )
 set_source_files_properties( resources/icons/yabause.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources )
@@ -219,7 +219,7 @@ include_directories(
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/ui
 	${Qt5Widgets_INCLUDE_DIRS}
-	${Qt5OpenGL_INCLUDE_DIRS} 
+	${Qt5OpenGL_INCLUDE_DIRS}
 	${Qt5Multimedia_INCLUDE_DIRS} )
 else()
 include_directories(
@@ -256,7 +256,7 @@ endif()
 yab_port_success(yabause-qt)
 configure_file(yabause.desktop.in ${YAB_PORT_NAME}.desktop)
 
-if (WIN32)
+if (WIN32 AND NOT MSYS2_BUILD)
 	install(TARGETS yabause-qt DESTINATION ".")
 	if (GLUT_FOUND)
 		install(FILES ${GLUT_INCLUDE_DIR}/../freeglut.dll DESTINATION ".")
@@ -273,7 +273,7 @@ if (WIN32)
 			DESTINATION "."
 			FILES_MATCHING PATTERN "SDL2.dll")
 	endif ()
-	if(Qt5_FOUND) 
+	if(Qt5_FOUND)
 		install(FILES ${QT_BINARY_DIR}/Qt5Core.dll DESTINATION ".")
 		install(FILES ${QT_BINARY_DIR}/Qt5Gui.dll DESTINATION ".")
 		install(FILES ${QT_BINARY_DIR}/Qt5OpenGL.dll DESTINATION ".")
@@ -289,7 +289,7 @@ if (WIN32)
 		install(FILES ${QT_BINARY_DIR}/QtGui4.dll DESTINATION ".")
 		install(FILES ${QT_BINARY_DIR}/QtOpenGL4.dll DESTINATION ".")
 		if (QT_QTMULTIMEDIA_FOUND)
-			install(FILES ${QT_BINARY_DIR}/QtMultimedia4.dll DESTINATION ".")        
+			install(FILES ${QT_BINARY_DIR}/QtMultimedia4.dll DESTINATION ".")
 		endif()
 	endif()
 
@@ -298,7 +298,7 @@ if (WIN32)
 	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../../COPYING    DESTINATION "." RENAME COPYING.txt)
 	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../../README     DESTINATION "." RENAME README.txt)
 	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../../README.WIN DESTINATION "." RENAME README.WIN.txt)
-	
+
 	if (MINGW)
 		get_filename_component( Mingw_Path ${CMAKE_CXX_COMPILER} PATH )
 		if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64")

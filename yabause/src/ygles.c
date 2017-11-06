@@ -242,7 +242,7 @@ extern int vdp1cob;
 #define IS_ZERO(a) ( (a) < EPS && (a) > -EPS)
 
 // AXB = |A||B|sin
-INLINE float cross2d( float veca[2], float vecb[2] )
+static INLINE float cross2d( float veca[2], float vecb[2] )
 {
    return (veca[0]*vecb[1])-(vecb[0]*veca[1]);
 }
@@ -653,7 +653,7 @@ int YglGLInit(int width, int height) {
    glDisable(GL_DEPTH_TEST);
    glDepthFunc(GL_GEQUAL);
    glClearDepthf(0.0f);
-   
+
    glCullFace(GL_FRONT_AND_BACK);
    glDisable(GL_CULL_FACE);
    glDisable(GL_DITHER);
@@ -1049,7 +1049,7 @@ void YglQuadOffset(YglSprite * input, YglTexture * output, YglCache * c, int cx,
     prg = PG_LINECOLOR_INSERT;
   }
 
-  
+
 	program = YglGetProgram(input, prg);
 	if (program == NULL) return;
 
@@ -1116,8 +1116,8 @@ void YglQuadOffset(YglSprite * input, YglTexture * output, YglCache * c, int cx,
 		tmp[2].t = tmp[4].t = tmp[5].t = (float)(y + (cy + vHeight)) - ATLAS_BIAS;
 	}
 
-	c->x = x; 
-	c->y = y; 
+	c->x = x;
+	c->y = y;
 
 	tmp[0].q = 1.0f;
 	tmp[1].q = 1.0f;
@@ -1316,7 +1316,7 @@ int YglQuadGrowShading(YglSprite * input, YglTexture * output, float * colors,Yg
 /*
    float dx = input->vertices[4] - input->vertices[0];
    float dy = input->vertices[5] - input->vertices[1];
- 
+
    if (dx < 0.0 && dy < 0.0 ){
 	   pos[0] = input->vertices[2*1 + 0]; // 1
 	   pos[1] = input->vertices[2*1 + 1];
@@ -1332,7 +1332,7 @@ int YglQuadGrowShading(YglSprite * input, YglTexture * output, float * colors,Yg
 	   pos[11] = input->vertices[2 * 3 + 1];
    }
    else
-*/  
+*/
    {
 	   pos[0] = input->vertices[0];
 	   pos[1] = input->vertices[1];
@@ -1927,7 +1927,7 @@ void YglRenderVDP1(void) {
       {
          level->prg[j].setupUniform((void*)&level->prg[j]);
       }
-        
+
 		  if( level->prg[j].currentQuad != 0 )
 		  {
 				glUniformMatrix4fv(level->prg[j].mtxModelView, 1, GL_FALSE, (GLfloat*)&_Ygl->mtxModelView.m[0][0]);
@@ -1947,7 +1947,7 @@ void YglRenderVDP1(void) {
 
    }
    level->prgcurrent = 0;
-   
+
 #if 0
    if ( (((Vdp1Regs->TVMR & 0x08)==0) && ((Vdp1Regs->FBCR & 0x03)==0x03) )
 	)
@@ -1961,7 +1961,7 @@ void YglRenderVDP1(void) {
    }
 #endif
    if ((((Vdp1Regs->TVMR & 0x08) == 0) && ((Vdp1Regs->FBCR & 0x03) == 0x03)) ||
-	   ((Vdp1Regs->FBCR & 2) == 0) || 
+	   ((Vdp1Regs->FBCR & 2) == 0) ||
 	   Vdp1External.manualchange)
    {
 	   u32 current_drawframe = 0;
@@ -2226,7 +2226,7 @@ void YglRender(void) {
      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
      YglTM->texture = NULL;
    }
-   
+
 #if 0 // Test
    ShaderDrawTest();
 #else
@@ -2279,7 +2279,7 @@ void YglRender(void) {
             }
 
             YglMatrixMultiply(&dmtx, &mtx, &_Ygl->mtxModelView);
-            
+
   		    if( level->prg[j].currentQuad != 0 )
 			    {
 #if 0
