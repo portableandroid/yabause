@@ -57,9 +57,9 @@ endif
 
 ifeq ($(HAVE_GL),1)
 SOURCES_C += \
-	$(SOURCE_DIR)/ygl.c \
+	$(SOURCE_DIR)/ygles.c \
 	$(SOURCE_DIR)/vidogl.c \
-	$(SOURCE_DIR)/yglshader.c
+	$(SOURCE_DIR)/yglshaderes.c
 endif
 
 ifneq ($(HAVE_GRIFFIN), 1)
