@@ -575,6 +575,7 @@ int Vdp1SaveState(FILE *fp)
    int i = 0;
    u8 back_framebuffer[0x40000] = { 0 };
 #endif
+
    offset = StateWriteHeader(fp, "VDP1", 1);
 
    // Write registers
@@ -582,6 +583,7 @@ int Vdp1SaveState(FILE *fp)
 
    // Write VDP1 ram
    ywrite(&check, (void *)Vdp1Ram, 0x80000, 1, fp);
+
 #ifdef IMPROVED_SAVESTATES
    for (i = 0; i < 0x40000; i++)
       back_framebuffer[i] = Vdp1FrameBufferReadByte(i);
@@ -600,6 +602,7 @@ int Vdp1LoadState(FILE *fp, UNUSED int version, int size)
    int i = 0;
    u8 back_framebuffer[0x40000] = { 0 };
 #endif
+
    // Read registers
    yread(&check, (void *)Vdp1Regs, sizeof(Vdp1), 1, fp);
 
@@ -1380,6 +1383,7 @@ void VIDDummyVdp2DrawScreens(void);
 void VIDDummyGetGlSize(int *width, int *height);
 void VIDDummVdp1ReadFrameBuffer(u32 type, u32 addr, void * out);
 void VIDDummVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val);
+void VIDDummyGetNativeResolution(int *width, int * height, int *interlace);
 
 VideoInterface_struct VIDDummy = {
 VIDCORE_DUMMY,
@@ -1406,7 +1410,8 @@ VIDDummyVdp2Reset,
 VIDDummyVdp2DrawStart,
 VIDDummyVdp2DrawEnd,
 VIDDummyVdp2DrawScreens,
-VIDDummyGetGlSize
+VIDDummyGetGlSize,
+VIDDummyGetNativeResolution
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1551,4 +1556,13 @@ void VIDDummVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
 
 void VIDDummVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
 {
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void VIDDummyGetNativeResolution(int *width, int * height, int * interlace)
+{
+   *width = 0;
+   *height = 0;
+   *interlace = 0;
 }
