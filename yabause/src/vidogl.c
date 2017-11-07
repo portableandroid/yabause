@@ -85,6 +85,7 @@ void VIDOGLVdp2DrawEnd(void);
 void VIDOGLVdp2DrawScreens(void);
 void VIDOGLVdp2SetResolution(u16 TVMD);
 void YglGetGlSize(int *width, int *height);
+void VIDOGLGetNativeResolution(int *width, int *height, int*interlace);
 void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out);
 
 VideoInterface_struct VIDOGL = {
@@ -112,7 +113,8 @@ VIDOGLVdp2Reset,
 VIDOGLVdp2DrawStart,
 VIDOGLVdp2DrawEnd,
 VIDOGLVdp2DrawScreens,
-YglGetGlSize
+YglGetGlSize,
+VIDOGLGetNativeResolution,
 };
 
 float vdp1wratio=1;
@@ -433,7 +435,7 @@ static u32 FASTCALL Vdp1ReadPolygonColor(vdp1cmd_struct *cmd)
 			}
 		}
 	}
-  break;
+		break;
 	case 5:
 	{
 		// 16 bpp Bank mode
@@ -4060,7 +4062,7 @@ void VIDOGLVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
    if (color & 0x8000)
 	   *texture.textdata = SAT2YAB1(alpha, color);
    else{
-	   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
+      Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 	   *texture.textdata = Vdp1ReadPolygonColor(&cmd);
    }
 
@@ -4277,7 +4279,7 @@ void VIDOGLVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
    if (color & 0x8000)
       *texture.textdata = SAT2YAB1(alpha,color);
    else{
-	   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
+      Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 	   *texture.textdata = Vdp1ReadPolygonColor(&cmd);
    }
 }
@@ -4565,7 +4567,7 @@ static void Vdp2DrawNBG0(void)
       else
          info.coordincy = (float) 65536 / (Vdp2Regs->ZMYN0.all & 0x7FF00);
 
-      info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2NBG0PlaneAddr;
+      info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG0PlaneAddr;
    }
    else
       // Not enabled
@@ -4794,7 +4796,7 @@ static void Vdp2DrawNBG1(void)
 
 
    info.priority = (Vdp2Regs->PRINA >> 8) & 0x7;;
-   info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2NBG1PlaneAddr;
+   info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG1PlaneAddr;
 
    if (!(info.enable & Vdp2External.disptoggle) || (info.priority == 0) ||
       (Vdp2Regs->BGON & 0x1 && (Vdp2Regs->CHCTLA & 0x70) >> 4 == 4)) // If NBG0 16M mode is enabled, don't draw
@@ -4942,7 +4944,7 @@ static void Vdp2DrawNBG2(void)
    info.coordincx = info.coordincy = 1;
 
    info.priority = Vdp2Regs->PRINB & 0x7;;
-   info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2NBG2PlaneAddr;
+   info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG2PlaneAddr;
 
    if (!(info.enable & Vdp2External.disptoggle) || (info.priority == 0) ||
       (Vdp2Regs->BGON & 0x1 && (Vdp2Regs->CHCTLA & 0x70) >> 4 >= 2)) // If NBG0 2048/32786/16M mode is enabled, don't draw
@@ -5206,13 +5208,13 @@ static void Vdp2DrawRBG0(void)
          // Parameter A
          info.rotatenum = 0;
 		 info.rotatemode = 0;
-         info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
+       info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
          break;
       case 1:
          // Parameter B
          info.rotatenum = 1;
 		 info.rotatemode = 0;
-         info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
+       info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
          break;
       case 2:
          // Parameter A+B switched via coefficients
@@ -5224,7 +5226,7 @@ static void Vdp2DrawRBG0(void)
          VDP2LOG("Rotation Parameter Mode %d not supported!\n", Vdp2Regs->RPMD & 0x3);
          info.rotatenum = 0;
 		 info.rotatemode = 1 + (Vdp2Regs->RPMD & 0x1);
-         info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
+       info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
          break;
    }
 
@@ -5290,7 +5292,7 @@ static void Vdp2DrawRBG0(void)
 
 	   for( i=0; i<16; i++ )
        {
-         paraA.PlaneAddr(&info, i, Vdp2Regs);
+         paraA.PlaneAddr(&info,i, Vdp2Regs);
          paraA.PlaneAddrv[i] = info.addr;
          paraB.PlaneAddr(&info, i, Vdp2Regs);
          paraB.PlaneAddrv[i] = info.addr;
@@ -5459,6 +5461,13 @@ void YglGetGlSize(int *width, int *height)
 {
    *width = GlWidth;
    *height = GlHeight;
+}
+
+void VIDOGLGetNativeResolution(int *width, int *height, int*interlace)
+{
+   *width = 0;
+   *height = 0;
+   *interlace = 0;
 }
 
 vdp2rotationparameter_struct * FASTCALL vdp2rGetKValue2W( vdp2rotationparameter_struct * param, int index )
