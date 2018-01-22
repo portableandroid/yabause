@@ -164,6 +164,11 @@ else ifneq (,$(findstring wii,$(platform)))
 	ENDIANNESS_DEFINES = -DWORDS_BIGENDIAN -DMSB_FIRST -DGEKKO -DHW_RVL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__
 	STATIC_LINKING = 1
 
+else ifeq ($(platform), switch)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
+	include $(LIBTRANSISTOR_HOME)/libtransistor.mk
+	STATIC_LINKING=1
+
 # ARM
 else ifneq (,$(findstring armv,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so

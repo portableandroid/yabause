@@ -34,7 +34,7 @@
 //#define BINARY_LOG
 
 /* Define GZIP_LOG to compress log as it's created */
-#ifdef __linux__
+#if defined(__linux__) && !defined(__SWITCH__)
 # define GZIP_LOG
 #endif
 
