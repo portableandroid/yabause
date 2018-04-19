@@ -11,7 +11,7 @@
 
 #include <sys/stat.h>
 
-#include "libretro.h"
+#include <libretro.h>
 
 #include "vdp1.h"
 #include "vdp2.h"
