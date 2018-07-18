@@ -237,7 +237,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 		LIBS += WindowsApp.lib
 	endif
 
-	MSVC2017CompileFlags += -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32
+	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP
 	CFLAGS += $(MSVC2017CompileFlags)
 	CXXFLAGS += $(MSVC2017CompileFlags)
 
@@ -367,9 +367,11 @@ ifeq ($(DEBUG), 1)
             CXXFLAGS += -MDd
         endif
         CFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+		C68KFLAGS = $(CFLAGS)
         CXXFLAGS += -Od -Zi -DDEBUG -D_DEBUG
     else
         CFLAGS += -O0 -g -DDEBUG
+		C68KFLAGS = $(CFLAGS)
         CXXFLAGS += -O0 -g -DDEBUG
     endif
 else
@@ -381,9 +383,11 @@ else
             CFLAGS += -MD
             CXXFLAGS += -MD
         endif
+		C68KFLAGS = $(CFLAGS) -O0 -DNDEBUG
         CFLAGS += -O2 -DNDEBUG
         CXXFLAGS += -O2 -DNDEBUG
     else
+		C68KFLAGS = $(CFLAGS) -O0 -DNDEBUG
         CFLAGS += -O3 -DNDEBUG
         CXXFLAGS += -O3 -DNDEBUG
     endif
@@ -418,7 +422,7 @@ endif
 	$(CC) $(CFLAGS) -c $(OBJOUT)$@ $<
 	
 $(C68KEXEC_OBJECT): $(C68KEXEC_SOURCE)
-	$(CC) -c -o $@ $< $(CFLAGS) -O0
+	$(CC) $(C68KFLAGS) -c $(OBJOUT)$@ $<
 
 clean:
 	rm -f $(TARGET) $(OBJECTS)
