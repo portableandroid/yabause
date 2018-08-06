@@ -72,6 +72,8 @@ u8 *HighWram;
 u8 *LowWram;
 u8 *BiosRom;
 u8 *BupRam;
+u8 *AllWram;
+u32 AllWramSize ;
 
 /* This flag is set to 1 on every write to backup RAM.  Ports can freely
  * check or clear this flag to determine when backup RAM has been written,
@@ -97,6 +99,58 @@ u8 * T1MemoryInit(u32 size)
    return mem;
 #else
    return calloc(size, sizeof(u8));
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////////
+/*
+ * Special allocator for WRAM to have a single contiguous block for scanning
+ */
+u8 * T1MemoryInitWram(u8** highWram, u32 highSize, u8** lowWram, u32 lowSize, u32 *totalAllocatedSize)
+{
+#ifdef PSP  // FIXME: could be ported to all arches, but requires stdint.h
+            //        for uintptr_t
+   u8 * baseAll;
+   u8 * baseHigh;
+   u8 * memHigh;
+   u8 * baseLow;
+   u8 * memLow;
+   u32 lowExpandedSize = (lowSize * sizeof(u8)) + sizeof(u8 *) + 64 ;
+   u32 highExpandedSize = (highSize * sizeof(u8)) + sizeof(u8 *) + 64 ;
+
+   if ((baseAll = calloc(lowExpandedSize+highExpandedSize) == NULL)
+      return NULL;
+
+   if ( totalAllocatedSize != NULL )
+	   *totalAllocatedSize = lowExpandedSize+highExpandedSize ;
+
+   baseHigh = baseAll ;
+   baseLow = baseAll + highExpandedSize ;
+
+   memHigh = baseHigh + sizeof(u8 *);
+   memHigh = memHigh + (64 - ((uintptr_t) memHigh & 63));
+   *(u8 **)(memHigh - sizeof(u8 *)) = baseHigh; // Save base pointer below memory block
+
+   memLow = baseLow + sizeof(u8 *);
+   memLow = memLow + (64 - ((uintptr_t) memLow & 63));
+   *(u8 **)(memLow - sizeof(u8 *)) = baseLow; // Save base pointer below memory block
+
+   *highWram = memHigh ;
+   *lowWram = memLow ;
+
+   return baseAll;
+#else
+   u8 * base ;
+
+   base = calloc(highSize+lowSize, sizeof(u8));
+
+   *highWram = base ;
+   *lowWram = base+highSize ;
+
+   if ( totalAllocatedSize != NULL )
+	   *totalAllocatedSize = lowSize+highSize ;
+
+   return base ;
 #endif
 }
 

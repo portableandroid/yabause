@@ -164,11 +164,16 @@ int YabauseInit(yabauseinit_struct *init)
    if ((BiosRom = T2MemoryInit(0x80000)) == NULL)
       return -1;
 
+   if ((AllWram = T1MemoryInitWram(&HighWram, 0x100000, &LowWram, 0x100000, &AllWramSize)) == NULL)
+      return -1;
+
+   /*
    if ((HighWram = T2MemoryInit(0x100000)) == NULL)
       return -1;
 
    if ((LowWram = T2MemoryInit(0x100000)) == NULL)
       return -1;
+   */
 
    if ((BupRam = T1MemoryInit(0x10000)) == NULL)
       return -1;
@@ -371,6 +376,14 @@ void YabauseDeInit(void) {
       T2MemoryDeInit(BiosRom);
    BiosRom = NULL;
 
+   if ( AllWram )
+	   free(AllWram) ;
+
+   AllWram = NULL ;
+   HighWram = NULL ;
+   LowWram = NULL ;
+
+   /*
    if (HighWram)
       T2MemoryDeInit(HighWram);
    HighWram = NULL;
@@ -378,6 +391,7 @@ void YabauseDeInit(void) {
    if (LowWram)
       T2MemoryDeInit(LowWram);
    LowWram = NULL;
+   */
 
    if (BupRam)
    {

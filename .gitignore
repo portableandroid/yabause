@@ -5,3 +5,9 @@
 *.pdb
 *.exp
 *.manifest
+Makefile
+.cproject
+.project
+.settings/
+**/*~
+
