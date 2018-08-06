@@ -927,6 +927,8 @@ void *retro_get_memory_data(unsigned id)
 {
    switch (id)
    {
+      case RETRO_MEMORY_SYSTEM_RAM:
+         return AllWram;
       case RETRO_MEMORY_SAVE_RAM:
          return BupRam;
       default:
@@ -940,6 +942,8 @@ size_t retro_get_memory_size(unsigned id)
 {
    switch (id)
    {
+      case RETRO_MEMORY_SYSTEM_RAM:
+         return AllWramSize;
       case RETRO_MEMORY_SAVE_RAM:
          return 0x10000;
       default:

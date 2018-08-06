@@ -27,6 +27,7 @@
 /* Type 1 Memory, faster for byte (8 bits) accesses */
 
 u8 * T1MemoryInit(u32);
+u8 * T1MemoryInitWram(u8** highWram, u32 highSize, u8** lowWram, u32 lowSize, u32 *totalAllocatedSize);
 void T1MemoryDeInit(u8 *);
 
 static INLINE u8 T1ReadByte(u8 * mem, u32 addr)
@@ -350,6 +351,8 @@ extern u8 *HighWram;
 }
 #endif
 extern u8 *LowWram;
+extern u8 *AllWram;
+extern u32 AllWramSize ;
 extern u8 *BiosRom;
 extern u8 *BupRam;
 extern u8 BupRamWritten;
