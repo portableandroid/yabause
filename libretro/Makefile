@@ -51,7 +51,8 @@ ifneq (,$(findstring unix,$(platform)))
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	#DYNAREC = 2
-	LDFLAGS += -lpthread
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 	HAVE_PTHREADS = 1
 
 else ifneq (,$(findstring linux-portable,$(platform)))
@@ -71,7 +72,8 @@ ifeq ($(arch),ppc)
 	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 endif
 	#DYNAREC = 2
-	LDFLAGS += -lpthread
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 	HAVE_PTHREADS = 1
 
 else ifneq (,$(findstring theos_ios,$(platform)))
@@ -181,7 +183,8 @@ else ifneq (,$(findstring armv,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 	HAVE_PTHREADS = 1
 	ifneq (,$(findstring cortexa8,$(platform)))
 		FLAGS += -marm -mcpu=cortex-a8
