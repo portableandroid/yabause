@@ -10,4 +10,4 @@ Makefile
 .project
 .settings/
 **/*~
-
+*.a
