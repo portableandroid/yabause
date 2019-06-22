@@ -51,8 +51,17 @@ static int current_height;
 
 static bool renderer_running = false;
 static bool hle_bios_force = false;
+static bool one_frame_rendered = false;
+ 
+#ifdef DYNAREC_DEVMIYAX
+static int g_sh2coretype = 3;
+#else
+static int g_sh2coretype = SH2CORE_INTERPRETER;
+#endif
 
 static int g_frame_skip = 1;
+static int g_rbg_resolution_mode = 0;
+static int g_rbg_use_compute_shader = 1;
 static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
 static int addon_cart_type = CART_DRAM32MBIT;
 static int resolution_mode = 1;
@@ -93,6 +102,9 @@ void retro_set_environment(retro_environment_t cb)
       { "yabasanshiro_addon_cart", "Addon Cartridge (restart); 4M_extended_ram|1M_extended_ram" },
       { "yabasanshiro_multitap_port1", "6Player Adaptor on Port 1; disabled|enabled" },
       { "yabasanshiro_multitap_port2", "6Player Adaptor on Port 2; disabled|enabled" },
+#ifdef DYNAREC_DEVMIYAX
+      { "yabasanshiro_sh2coretype", "SH2 Core (restart); dynarec|interpreter" },
+#endif
 #ifdef ALLOW_POLYGON_MODE
       { "yabasanshiro_polygon_mode", "Polygon Mode; perspective_correction|gpu_tesselation|cpu_tesselation" },
 #endif
@@ -101,6 +113,8 @@ void retro_set_environment(retro_environment_t cb)
 #else
       { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x" },
 #endif
+      { "yabasanshiro_rbg_resolution_mode", "RGB resolution mode; original|2x|720p|1080p" },
+      { "yabasanshiro_rbg_use_compute_shader", "RGB use compute shader for RGB; enabled|disabled" },
       { NULL, NULL },
    };
 
@@ -550,6 +564,7 @@ void YuiSwapBuffers(void)
       retro_set_resolution();
    audio_size = soundlen;
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
+   one_frame_rendered = true;
 }
 
 static void context_reset(void)
@@ -564,7 +579,6 @@ static void context_reset(void)
       YabauseInit(&yinit);
       renderer_running = true;
       retro_set_resolution();
-      //YabThreadSetCurrentThreadAffinityMask(0x00);
       OSDChangeCore(OSDCORE_DUMMY);
    }
    else
@@ -666,6 +680,38 @@ void check_variables(void)
          g_frame_skip = 0;
    }
 
+   var.key = "yabasanshiro_rbg_resolution_mode";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "original") == 0)
+      {
+         g_rbg_resolution_mode = 0;
+      }
+      else if (strcmp(var.value, "2x") == 0)
+      {
+         g_rbg_resolution_mode = 1;
+      }
+      else if (strcmp(var.value, "720p") == 0)
+      {
+         g_rbg_resolution_mode = 2;
+      }
+      else if (strcmp(var.value, "1080p") == 0)
+      {
+         g_rbg_resolution_mode = 3;
+      }
+   }
+
+   var.key = "yabasanshiro_rbg_use_compute_shader";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "enabled") == 0)
+         g_rbg_use_compute_shader = 1;
+      else if (strcmp(var.value, "disabled") == 0)
+         g_rbg_use_compute_shader = 0;
+   }
+
    var.key = "yabasanshiro_videoformattype";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -675,6 +721,18 @@ void check_variables(void)
       else if (strcmp(var.value, "PAL") == 0)
          g_videoformattype = VIDEOFORMATTYPE_PAL;
    }
+
+#ifdef DYNAREC_DEVMIYAX
+   var.key = "yabasanshiro_sh2coretype";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "dynarec") == 0)
+         g_sh2coretype = 3;
+      else if (strcmp(var.value, "interpreter") == 0)
+         g_sh2coretype = SH2CORE_INTERPRETER;
+   }
+#endif
 
    var.key = "yabasanshiro_addon_cart";
    var.value = NULL;
@@ -770,20 +828,18 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-   switch(device)
+   if(pad_type[port] != device)
    {
-      case RETRO_DEVICE_JOYPAD:
-      case RETRO_DEVICE_ANALOG:
-         pad_type[port] = device;
-         break;
+      pad_type[port] = device;
+      if(PERCore)
+         PERCore->Init();
    }
-
-   if(PERCore)
-      PERCore->Init();
 }
 
 size_t retro_serialize_size(void)
 {
+   // Disabling savestates until they are safe
+   return 0;
    void *buffer;
    size_t size;
 
@@ -798,6 +854,8 @@ size_t retro_serialize_size(void)
 
 bool retro_serialize(void *data, size_t size)
 {
+   // Disabling savestates until they are safe
+   return true;
    void *buffer;
    size_t out_size;
 
@@ -811,6 +869,8 @@ bool retro_serialize(void *data, size_t size)
 
 bool retro_unserialize(const void *data, size_t size)
 {
+   // Disabling savestates until they are safe
+   return true;
    int error = YabLoadStateBuffer(data, size);
    retro_set_resolution();
 
@@ -880,9 +940,6 @@ void retro_init(void)
    snprintf(save_dir, sizeof(save_dir), "%s%cyabasanshiro%c", g_save_dir, slash, slash);
    path_mkdir(save_dir);
 
-   if(PERCore)
-      PERCore->Init();
-
    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 
    environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialization_quirks);
@@ -898,11 +955,7 @@ bool retro_load_game_common()
 
    yinit.vidcoretype               = VIDCORE_OGL;
    yinit.percoretype               = PERCORE_LIBRETRO;
-#ifdef DYNAREC_DEVMIYAX
-   yinit.sh2coretype               = 3;
-#else
-   yinit.sh2coretype               = SH2CORE_INTERPRETER;
-#endif
+   yinit.sh2coretype               = g_sh2coretype;
    yinit.sndcoretype               = SNDCORE_LIBRETRO;
 #ifdef HAVE_MUSASHI
    yinit.m68kcoretype              = M68KCORE_MUSASHI;
@@ -911,6 +964,8 @@ bool retro_load_game_common()
 #endif
    yinit.mpegpath                  = NULL;
    yinit.frameskip                 = g_frame_skip;
+   yinit.rbg_resolution_mode       = g_rbg_resolution_mode;
+   yinit.rbg_use_compute_shader    = g_rbg_use_compute_shader;
    yinit.usethreads                = 0;
    yinit.rotate_screen             = 0;
    yinit.skip_load                 = 0;
@@ -1260,16 +1315,21 @@ void retro_run(void)
 {
    unsigned i;
    bool updated  = false;
-
-   //YabThreadSetCurrentThreadAffinityMask(0x00);
+   one_frame_rendered = false;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {
       int prev_resolution_mode = resolution_mode;
+      int prev_multitap[2] = {multitap[0],multitap[1]};
       check_variables();
       if(prev_resolution_mode != resolution_mode)
          retro_set_resolution();
-      VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
+      // Unlike Kronos, this core dislike changing tesselation on the fly
+      //VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
+      VIDCore->SetSettingValue(VDP_SETTING_RBG_RESOLUTION_MODE, g_rbg_resolution_mode);
+      VIDCore->SetSettingValue(VDP_SETTING_RBG_USE_COMPUTESHADER, g_rbg_use_compute_shader);
+      if(PERCore && (prev_multitap[0] != multitap[0] || prev_multitap[1] != multitap[1]))
+         PERCore->Init();
       YabauseSetVideoFormat(g_videoformattype);
       if(g_frame_skip == 1)
          EnableAutoFrameSkip();
@@ -1280,6 +1340,10 @@ void retro_run(void)
    //YabauseExec(); runs from handle events
    if(PERCore)
       PERCore->HandleEvents();
+
+   // If no frame rendered, dupe
+   if(!one_frame_rendered)
+      video_cb(NULL, current_width, current_height, 0);
 
    reset_global_gl_state();
 }

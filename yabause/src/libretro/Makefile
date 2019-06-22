@@ -1,18 +1,20 @@
 DEBUG = 0
 DEBUG_ASAN = 0
 DEBUG_UBSAN = 0
+DEBUG_TSAN = 0
 HAVE_SSE = 1
 __USE_OPENGL_DEBUG__ = 0
 HAVE_MUSASHI = 1
 HAVE_GLES = 0
 FASTMATH = 1
 # Tesselation is broken in yabasanshiro ?
-ALLOW_POLYGON_MODE = 0
+ALLOW_POLYGON_MODE = 1
 LOW_END = 0
 DYNAREC_DEVMIYAX = 0
 USE_ARM_DRC = 0
 USE_AARCH64_DRC = 0
 USE_X86_DRC = 0
+USE_RTHREADS = 1
 ARCH_IS_LINUX = 0
 ARCH_IS_MACOSX = 0
 FORCE_GLEW = 0
@@ -87,6 +89,36 @@ ifneq (,$(findstring unix,$(platform)))
 		DYNAREC_DEVMIYAX = 1
 		FLAGS += -DARM
 	endif
+
+# Switch Lakka (arm64)
+else ifeq ($(platform), arm64)
+	override platform += unix
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	LDFLAGS += -lpthread -lGL
+	FLAGS +=  -DAARCH64
+	ARCH_IS_LINUX = 1
+	HAVE_SSE = 0
+	USE_AARCH64_DRC = 1
+	DYNAREC_DEVMIYAX = 1
+	ALLOW_POLYGON_MODE = 0
+
+# RockPro64
+else ifneq (,$(findstring rockpro64,$(platform)))
+	override platform += unix
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	LDFLAGS += -lpthread -lGL
+	ARCH_IS_LINUX = 1
+	HAVE_SSE = 0
+	HAVE_GLES = 1
+	USE_ARM_DRC = 1
+	DYNAREC_DEVMIYAX = 1
+	LOW_END = 1
+	ALLOW_POLYGON_MODE = 0
+	FLAGS += -march=armv8-a+crc -mcpu=cortex-a72 -mtune=cortex-a72.cortex-a53 -mfloat-abi=hard -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
 
 # ODROIDs
 else ifeq ($(platform), odroid-n2)
@@ -262,6 +294,12 @@ ifeq ($(DEBUG_UBSAN), 1)
 	LDFLAGS += -lubsan -fsanitize=undefined
 endif
 
+ifeq ($(DEBUG_TSAN), 1)
+	DEBUG = 1
+	FLAGS += -ltsan -fsanitize=thread
+	LDFLAGS += -ltsan -fsanitize=thread
+endif
+
 ifeq ($(DEBUG), 1)
 	FLAGS += -O0 -g
 else
@@ -322,16 +360,13 @@ FLAGS += $(fpic)
 INCFLAGS := $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
 WARNINGS :=
-FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
+FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
 	-DNO_CLI -DHAVE_BUILTIN_BSWAP16=1 -DHAVE_BUILTIN_BSWAP32=1 -DHAVE_C99_VARIADIC_MACROS=1 \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
 	-DHAVE_LIBGL -DVERSION=\"2.3.1\" -D_OGLES3_
 
-CXXFLAGS += $(FLAGS)
-CXXFLAGS += -std=gnu++11 -funroll-loops -fomit-frame-pointer
-
-CFLAGS += $(FLAGS)
-CFLAGS += -std=gnu99 -funroll-loops -fomit-frame-pointer
+CXXFLAGS += $(FLAGS) -std=gnu++11
+CFLAGS += $(FLAGS) -std=gnu99
 
 all: $(TARGET)
 
