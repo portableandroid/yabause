@@ -70,7 +70,8 @@ else
 	endif
 endif
 
-SOURCES_CXX := $(SOURCE_DIR)/Counter.cpp
+SOURCES_CXX := $(SOURCE_DIR)/Counter.cpp \
+	$(SOURCE_DIR)/ygl_texture.cpp
 
 ifeq ($(HAVE_MUSASHI), 1)
 	SOURCES_C += $(SOURCE_DIR)/musashi/m68kcpu.c \
