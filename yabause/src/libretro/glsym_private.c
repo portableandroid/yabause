@@ -4,6 +4,7 @@
 RGLSYMGLMEMORYBARRIERPROC __rglgen_glMemoryBarrier;
 RGLSYMGLBINDFRAGDATALOCATIONPROC __rglgen_glBindFragDataLocation;
 RGLSYMGLPATCHPARAMETERIPROC __rglgen_glPatchParameteri;
+RGLSYMGLDISPATCHCOMPUTEPROC __rglgen_glDispatchCompute;
 #elif !defined(_OGLES3_)
 RGLSYMGLTEXTUREBARRIERNVPROC __rglgen_glTextureBarrierNV;
 #endif

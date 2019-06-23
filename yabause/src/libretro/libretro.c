@@ -62,7 +62,6 @@ static int g_sh2coretype = SH2CORE_INTERPRETER;
 static int g_frame_skip = 1;
 static int g_rbg_resolution_mode = 0;
 static int g_rbg_use_compute_shader = 1;
-static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
 static int addon_cart_type = CART_DRAM32MBIT;
 static int resolution_mode = 1;
 static int initial_resolution_mode = 0;
@@ -98,7 +97,6 @@ void retro_set_environment(retro_environment_t cb)
    static const struct retro_variable vars[] = {
       { "yabasanshiro_force_hle_bios", "Force HLE BIOS (restart, deprecated, debug only); disabled|enabled" },
       { "yabasanshiro_frameskip", "Auto-frameskip (prevent fast-forwarding); enabled|disabled" },
-      { "yabasanshiro_videoformattype", "Video format; NTSC|PAL" },
       { "yabasanshiro_addon_cart", "Addon Cartridge (restart); 4M_extended_ram|1M_extended_ram" },
       { "yabasanshiro_multitap_port1", "6Player Adaptor on Port 1; disabled|enabled" },
       { "yabasanshiro_multitap_port2", "6Player Adaptor on Port 2; disabled|enabled" },
@@ -712,16 +710,6 @@ void check_variables(void)
          g_rbg_use_compute_shader = 0;
    }
 
-   var.key = "yabasanshiro_videoformattype";
-   var.value = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-      if (strcmp(var.value, "NTSC") == 0)
-         g_videoformattype = VIDEOFORMATTYPE_NTSC;
-      else if (strcmp(var.value, "PAL") == 0)
-         g_videoformattype = VIDEOFORMATTYPE_PAL;
-   }
-
 #ifdef DYNAREC_DEVMIYAX
    var.key = "yabasanshiro_sh2coretype";
    var.value = NULL;
@@ -976,7 +964,7 @@ bool retro_load_game_common()
    yinit.scsp_sync_count_per_frame = 1;
    yinit.extend_backup             = 1;
    yinit.scsp_main_mode            = 1;
-   yinit.videoformattype           = g_videoformattype;
+   yinit.videoformattype           = VIDEOFORMATTYPE_NTSC;
    yinit.video_filter_type         = 0;
 
    return true;
@@ -1266,7 +1254,7 @@ void retro_unload_game(void)
 
 unsigned retro_get_region(void)
 {
-   return yabsys.IsPal == 1 ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
+   return RETRO_REGION_NTSC;
 }
 
 unsigned retro_api_version(void)
@@ -1330,7 +1318,6 @@ void retro_run(void)
       VIDCore->SetSettingValue(VDP_SETTING_RBG_USE_COMPUTESHADER, g_rbg_use_compute_shader);
       if(PERCore && (prev_multitap[0] != multitap[0] || prev_multitap[1] != multitap[1]))
          PERCore->Init();
-      YabauseSetVideoFormat(g_videoformattype);
       if(g_frame_skip == 1)
          EnableAutoFrameSkip();
       else
