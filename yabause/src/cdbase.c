@@ -33,8 +33,14 @@
 #include "debug.h"
 
 #ifdef __LIBRETRO__
-// Remove this for now, execution on windows fails because of it
-// #include "streams/file_stream_transforms.h"
+#ifdef _MSC_VER
+// BarbuDreadMon - 2019-06-23 :
+// This stuff is not a real drop-in replacement of file functions
+// There are several issues i have pointed out while working on fbalpha/fbneo
+// It also seems to break yabause cores on windows (at least the one built with gcc)
+// But afaik, it's somehow needed when building with msvc2017 for UWP...
+#include "streams/file_stream_transforms.h"
+#endif
 #include "compat/posix_string.h"
 #undef stricmp
 #define stricmp strcasecmp
