@@ -24,10 +24,6 @@
 */
 #define _GNU_SOURCE
 #include <string.h>
-#ifndef WIN32
-#include <strings.h>
-#include <dirent.h>
-#endif
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
@@ -378,9 +374,15 @@ static int current_file_id = 0;
 
 #define MSF_TO_FAD(m,s,f) ((m * 4500) + (s * 75) + f)
 
+#ifdef WIN32
+static char slash = '\\';
+#else
+static char slash = '/';
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 static int shallBeEscaped(char c) {
-  return ((c=='\\'));
+  return ((c==slash));
 }
 
 static int charToEscape(char *buffer) {
@@ -392,35 +394,6 @@ static int charToEscape(char *buffer) {
   return ret;
 }
 
-#ifndef WIN32
-static FILE* fopenInPath(char* filename, char* path){
-  int nbFiles,i,k;
-  char* tmp;
-  int l = strlen(filename) + 2;
-  struct dirent **fileListTemp;
-  nbFiles = scandir(path, &fileListTemp, NULL, alphasort);
-  for(i = 0; i < nbFiles; i++){
-    if (strncasecmp(filename, fileListTemp[i]->d_name, l) == 0) {
-      int p= (l + charToEscape(filename) + charToEscape(path)+strlen(path));
-      char* filepath = malloc(p*sizeof(char));
-      tmp = filepath;
-      for (k=0; k<strlen(path); k++) {
-        if (shallBeEscaped(path[k])) *tmp++='\\';
-           *tmp++ = path[k];
-      }
-      *tmp++ = '/';
-      for (k=0; k<strlen(fileListTemp[i]->d_name); k++) {
-        if (shallBeEscaped(fileListTemp[i]->d_name[k])) *tmp++='\\';
-           *tmp++ = fileListTemp[i]->d_name[k];
-      }
-      *tmp++ = '\0';
-      return fopen(filepath,"rb");
-    }
-  }
-  return NULL;
-
-}
-#else
 static FILE* fopenInPath(char* filename, char* path){
   int l = strlen(filename)+2;
   int k;
@@ -428,18 +401,17 @@ static FILE* fopenInPath(char* filename, char* path){
   char* tmp;
   tmp = filepath;
   for (k=0; k<strlen(path); k++) {
-    if (shallBeEscaped(path[k])) *tmp++='\\';
+    if (shallBeEscaped(path[k])) *tmp++=slash;
     *tmp++ = path[k];
   }
-  *tmp++ = '\\';
+  *tmp++ = slash;
   for (k=0; k<strlen(filename); k++) {
-    if (shallBeEscaped(filename[k])) *tmp++='\\';
+    if (shallBeEscaped(filename[k])) *tmp++=slash;
     *tmp++ = filename[k];
   }
   *tmp++ = '\0';
   return fopen(filepath,"rb");
 }
-#endif
 
 static FILE* OpenFile(char* buffer, const char* cue) {
    char *filename, *endofpath;
