@@ -1132,7 +1132,7 @@ public:
 
   glGenBuffers(1, &scene_uniform);
   glBindBuffer(GL_UNIFORM_BUFFER, scene_uniform);
-  glBufferData(GL_UNIFORM_BUFFER, sizeof(RBGDrawInfo), &uniform, GL_STATIC_DRAW);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(RBGUniform), &uniform, GL_STATIC_DRAW);
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	glGenBuffers(1, &ssbo_window_);
@@ -2264,7 +2264,7 @@ public:
 	}
 
   glBindBuffer(GL_UNIFORM_BUFFER, scene_uniform);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RBGDrawInfo), (void*)&uniform);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RBGUniform), (void*)&uniform);
 	ErrorHandle("glBufferSubData");
   glBindBufferBase(GL_UNIFORM_BUFFER, 3, scene_uniform);
 
