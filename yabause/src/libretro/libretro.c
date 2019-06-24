@@ -52,6 +52,9 @@ static int current_height;
 static bool renderer_running = false;
 static bool hle_bios_force = false;
 static bool one_frame_rendered = false;
+
+static bool libretro_supports_bitmasks = false;
+static int16_t libretro_input_bitmask[12] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
  
 #ifdef DYNAREC_DEVMIYAX
 static int g_sh2coretype = 3;
@@ -199,6 +202,18 @@ int PERLIBRETROInit(void)
    return 0;
 }
 
+static int input_state_cb_wrapper(unsigned port, unsigned device, unsigned index, unsigned id)
+{
+   if (libretro_supports_bitmasks && device == RETRO_DEVICE_JOYPAD)
+   {
+      if (libretro_input_bitmask[port] == -1)
+         libretro_input_bitmask[port] = input_state_cb(port, RETRO_DEVICE_JOYPAD, index, RETRO_DEVICE_ID_JOYPAD_MASK);
+      return (libretro_input_bitmask[port] & (1 << id));
+   }
+   else
+      return input_state_cb(port, device, index, id);
+}
+
 static int PERLIBRETROHandleEvents(void)
 {
    unsigned i = 0;
@@ -212,93 +227,94 @@ static int PERLIBRETROHandleEvents(void)
          int analog_right_x = 0;
          int analog_right_y = 0;
          uint16_t l_trigger, r_trigger;
+         libretro_input_bitmask[i] = -1;
 
          switch(pad_type[i])
          {
             case RETRO_DEVICE_ANALOG:
-               analog_left_x = input_state_cb(i, RETRO_DEVICE_ANALOG,
+               analog_left_x = input_state_cb_wrapper(i, RETRO_DEVICE_ANALOG,
                      RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
 
                PerAxisValue((i << 8) + PERANALOG_AXIS1, (u8)((analog_left_x + 0x8000) >> 8));
 
-               analog_left_y = input_state_cb(i, RETRO_DEVICE_ANALOG,
+               analog_left_y = input_state_cb_wrapper(i, RETRO_DEVICE_ANALOG,
                      RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
 
                PerAxisValue((i << 8) + PERANALOG_AXIS2, (u8)((analog_left_y + 0x8000) >> 8));
 
                // analog triggers
-               l_trigger = input_state_cb( i, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_BUTTON, RETRO_DEVICE_ID_JOYPAD_L2 );
-               r_trigger = input_state_cb( i, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_BUTTON, RETRO_DEVICE_ID_JOYPAD_R2 );
+               l_trigger = input_state_cb_wrapper( i, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_BUTTON, RETRO_DEVICE_ID_JOYPAD_L2 );
+               r_trigger = input_state_cb_wrapper( i, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_BUTTON, RETRO_DEVICE_ID_JOYPAD_R2 );
 
                // if no analog trigger support, use digital
                if (l_trigger == 0)
-                  l_trigger = input_state_cb( i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2 ) ? 0x7FFF : 0;
+                  l_trigger = input_state_cb_wrapper( i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2 ) ? 0x7FFF : 0;
                if (r_trigger == 0)
-                  r_trigger = input_state_cb( i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2 ) ? 0x7FFF : 0;
+                  r_trigger = input_state_cb_wrapper( i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2 ) ? 0x7FFF : 0;
 
                PerAxisValue((i << 8) + PERANALOG_AXIS3, (u8)((r_trigger > 0 ? r_trigger + 0x8000 : 0) >> 8));
                PerAxisValue((i << 8) + PERANALOG_AXIS4, (u8)((l_trigger > 0 ? l_trigger + 0x8000 : 0) >> 8));
 
             case RETRO_DEVICE_JOYPAD:
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
                   PerKeyDown((i << 8) + PERPAD_UP);
                else
                   PerKeyUp((i << 8) + PERPAD_UP);
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
                   PerKeyDown((i << 8) + PERPAD_DOWN);
                else
                   PerKeyUp((i << 8) + PERPAD_DOWN);
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
                   PerKeyDown((i << 8) + PERPAD_LEFT);
                else
                   PerKeyUp((i << 8) + PERPAD_LEFT);
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
                   PerKeyDown((i << 8) + PERPAD_RIGHT);
                else
                   PerKeyUp((i << 8) + PERPAD_RIGHT);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
                   PerKeyDown((i << 8) + PERPAD_X);
                else
                   PerKeyUp((i << 8) + PERPAD_X);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
                   PerKeyDown((i << 8) + PERPAD_A);
                else
                   PerKeyUp((i << 8) + PERPAD_A);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
                   PerKeyDown((i << 8) + PERPAD_B);
                else
                   PerKeyUp((i << 8) + PERPAD_B);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X))
                   PerKeyDown((i << 8) + PERPAD_Y);
                else
                   PerKeyUp((i << 8) + PERPAD_Y);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
                   PerKeyDown((i << 8) + PERPAD_C);
                else
                   PerKeyUp((i << 8) + PERPAD_C);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
                   PerKeyDown((i << 8) + PERPAD_Z);
                else
                   PerKeyUp((i << 8) + PERPAD_Z);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START))
                   PerKeyDown((i << 8) + PERPAD_START);
                else
                   PerKeyUp((i << 8) + PERPAD_START);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
                   PerKeyDown((i << 8) + PERPAD_LEFT_TRIGGER);
                else
                   PerKeyUp((i << 8) + PERPAD_LEFT_TRIGGER);
 
-               if (input_state_cb(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
+               if (input_state_cb_wrapper(i, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
                   PerKeyDown((i << 8) + PERPAD_RIGHT_TRIGGER);
                else
                   PerKeyUp((i << 8) + PERPAD_RIGHT_TRIGGER);
@@ -928,6 +944,9 @@ void retro_init(void)
    snprintf(save_dir, sizeof(save_dir), "%s%cyabasanshiro%c", g_save_dir, slash, slash);
    path_mkdir(save_dir);
 
+   if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
+      libretro_supports_bitmasks = true;
+
    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 
    environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialization_quirks);
@@ -1274,6 +1293,7 @@ size_t retro_get_memory_size(unsigned id)
 
 void retro_deinit(void)
 {
+   libretro_supports_bitmasks = false;
 }
 
 void retro_reset(void)
