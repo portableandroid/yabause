@@ -5,7 +5,7 @@ DEBUG_TSAN = 0
 HAVE_SSE = 1
 __USE_OPENGL_DEBUG__ = 0
 HAVE_MUSASHI = 1
-HAVE_GLES = 0
+FORCE_GLES = 0
 FASTMATH = 1
 # Tesselation is broken in yabasanshiro ?
 ALLOW_POLYGON_MODE = 1
@@ -83,7 +83,7 @@ ifneq (,$(findstring unix,$(platform)))
 		else ifneq (,$(findstring hardfloat,$(platform)))
 			FLAGS += -mfloat-abi=hard
 		endif
-		HAVE_GLES = 1
+		FORCE_GLES = 1
 		HAVE_SSE = 0
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
@@ -113,7 +113,7 @@ else ifneq (,$(findstring rockpro64,$(platform)))
 	LDFLAGS += -lpthread -lGL
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
-	HAVE_GLES = 1
+	FORCE_GLES = 1
 	USE_ARM_DRC = 1
 	DYNAREC_DEVMIYAX = 1
 	LOW_END = 1
@@ -130,7 +130,7 @@ else ifeq ($(platform), odroid-n2)
 	FLAGS +=  -DAARCH64
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
-	HAVE_GLES = 1
+	FORCE_GLES = 1
 	USE_AARCH64_DRC = 1
 	DYNAREC_DEVMIYAX = 1
 	ALLOW_POLYGON_MODE = 0
@@ -153,7 +153,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 
 	ifneq (,$(findstring ODROID-XU3,$(BOARD)))
 		HAVE_SSE = 0
-		HAVE_GLES = 1
+		FORCE_GLES = 1
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
 		LOW_END = 1
@@ -166,7 +166,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 		endif
 	else ifneq (,$(findstring ODROID-XU4,$(BOARD)))
 		HAVE_SSE = 0
-		HAVE_GLES = 1
+		FORCE_GLES = 1
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
 		LOW_END = 1
@@ -312,12 +312,14 @@ else
 	OBJECTS += $(C68KEXEC_OBJECT)
 endif
 
-ifeq ($(HAVE_GLES), 1)
-	FLAGS += -DHAVE_GLES
+ifeq ($(FORCE_GLES), 1)
+	FLAGS += -D_OGLES3_
 	LDFLAGS += -lGLESv2
 	ifeq ($(FORCE_GLEW), 0)
 		FLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES3
 	endif
+else
+	FLAGS += -D_OGL3_
 endif
 
 ifeq ($(LOW_END), 1)
@@ -363,7 +365,7 @@ WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
 	-DNO_CLI -DHAVE_BUILTIN_BSWAP16=1 -DHAVE_BUILTIN_BSWAP32=1 -DHAVE_C99_VARIADIC_MACROS=1 \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
-	-DHAVE_LIBGL -DVERSION=\"2.5.1\" -D_OGLES3_
+	-DHAVE_LIBGL -DVERSION=\"2.5.1\"
 
 CXXFLAGS += $(FLAGS) -std=gnu++11
 CFLAGS += $(FLAGS) -std=gnu99
