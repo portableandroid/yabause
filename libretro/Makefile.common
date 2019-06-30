@@ -1,5 +1,7 @@
 SOURCE_DIR := $(CORE_DIR)/../yabause/src
+ifeq ($(LIBRETRO_COMM_DIR),)
 LIBRETRO_COMM_DIR := $(CORE_DIR)/../libretro-common
+endif
 
 INCFLAGS := -I$(CORE_DIR) -I$(SOURCE_DIR) -I$(SOURCE_DIR)/tools -I$(LIBRETRO_COMM_DIR)/include
 
