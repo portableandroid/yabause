@@ -32,11 +32,8 @@
 #include "error.h"
 #include "debug.h"
 
-#ifndef HAVE_STRICMP
-#ifdef HAVE_STRCASECMP
-#define stricmp strcasecmp
-#endif
-#endif
+#include "streams/file_stream.h"
+#include "compat/posix_string.h"
 
 #ifndef HAVE_WFOPEN
 static char * wcsdupstr(const wchar_t * path)
@@ -56,9 +53,9 @@ static char * wcsdupstr(const wchar_t * path)
    return mbs;
 }
 
-static FILE * _wfopen(const wchar_t *wpath, const wchar_t *wmode)
+static RFILE* _wfopen(const wchar_t *wpath, const wchar_t *wmode)
 {
-   FILE * fd;
+   RFILE *fd;
    char * path;
    char * mode;
 
@@ -72,7 +69,7 @@ static FILE * _wfopen(const wchar_t *wpath, const wchar_t *wmode)
       return NULL;
    }
 
-   fd = fopen(path, mode);
+   fd = filestream_open(path, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 
    free(path);
    free(mode);
@@ -253,7 +250,7 @@ typedef struct
    u32 fad_end;
    u32 file_offset;
    u32 sector_size;
-   FILE *fp;
+   RFILE *fp;
    int file_size;
    int file_id;
    int interleaved_sub;
@@ -386,7 +383,7 @@ static int charToEscape(char *buffer) {
   return ret;
 }
 
-static FILE* fopenInPath(char* filename, char* path){
+static RFILE* fopenInPath(char* filename, char* path){
   int l = strlen(filename)+2;
   int k;
   char* filepath = malloc((l + charToEscape(filename) + charToEscape(path)+strlen(path))*sizeof(char));
@@ -402,16 +399,16 @@ static FILE* fopenInPath(char* filename, char* path){
     *tmp++ = filename[k];
   }
   *tmp++ = '\0';
-  return fopen(filepath,"rb");
+  return filestream_open(filepath, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 }
 
-static FILE* OpenFile(char* buffer, const char* cue) {
+static RFILE* OpenFile(char* buffer, const char* cue) {
    char *filename, *endofpath;
    char *path;
    int tmp;
-   FILE *ret_file = NULL;
+   RFILE *ret_file = NULL;
    // Now go and open up the image file, figure out its size, etc.
-   if ((ret_file = fopen(buffer, "rb")) == NULL)
+   if ((ret_file = filestream_open(buffer, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE)) == NULL)
    {
       // Ok, exact path didn't work. Let's trim the path and try opening the
       // file from the same directory as the cue.
@@ -450,7 +447,7 @@ static FILE* OpenFile(char* buffer, const char* cue) {
    return ret_file;
 }
 
-static int LoadBinCue(const char *cuefilename, FILE *iso_file)
+static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
 {
    long size;
    char* temp_buffer;
@@ -460,7 +457,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    track_info_struct trk[100];
    int i;
    int matched = 0;
-   FILE *trackfp = NULL;
+   RFILE *trackfp = NULL;
    int trackfp_size = 0;
    int fad = 0;
    int current_file_id = 0;
@@ -474,8 +471,8 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       return -1;
    }
 
-   fseek(iso_file, 0, SEEK_END);
-   size = ftell(iso_file);
+   filestream_seek(iso_file, 0, RETRO_VFS_SEEK_POSITION_END);
+   size = filestream_tell(iso_file);
 
    if(size <= 0)
    {
@@ -483,7 +480,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       return -1;
    }
 
-   fseek(iso_file, 0, SEEK_SET);
+   filestream_seek(iso_file, 0, RETRO_VFS_SEEK_POSITION_START);
 
    // Allocate buffer with enough space for reading cue
    if ((temp_buffer = (char *)calloc(size, 1)) == NULL)
@@ -493,21 +490,21 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    for (;;)
    {
       // Retrieve a line in cue
-      if (fscanf(iso_file, "%s", temp_buffer) == EOF)
+      if (filestream_scanf(iso_file, "%s", temp_buffer) == EOF)
          break;
 
       if (strncmp(temp_buffer, "FILE", 4) == 0)
       {
-         matched = fscanf(iso_file, " \"%[^\"]\"", temp_buffer);
+         matched = filestream_scanf(iso_file, " \"%[^\"]\"", temp_buffer);
          trackfp = OpenFile(temp_buffer, cuefilename);
          if (trackfp == NULL) {
            printf("Can not open file %s\n", temp_buffer);
            free(temp_buffer);
            return -1;
          }
-         fseek(trackfp, 0, SEEK_END);
-         trackfp_size = ftell(trackfp);
-         fseek(trackfp, 0, SEEK_SET);
+         filestream_seek(trackfp, 0, RETRO_VFS_SEEK_POSITION_END);
+         trackfp_size = filestream_tell(trackfp);
+         filestream_seek(trackfp, 0, RETRO_VFS_SEEK_POSITION_START);
          current_file_id++;
          continue;
       }
@@ -516,7 +513,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       if (strncmp(temp_buffer, "TRACK", 5) == 0)
       {
          // Handle accordingly
-         if (fscanf(iso_file, "%d %[^\r\n]\r\n", &track_num, temp_buffer) == EOF)
+         if (filestream_scanf(iso_file, "%d %[^\r\n]\r\n", &track_num, temp_buffer) == EOF)
             break;
 
          trk[track_num-1].fp = trackfp;
@@ -546,7 +543,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       {
          // Handle accordingly
 
-         if (fscanf(iso_file, "%d %d:%d:%d\r\n", &indexnum, &min, &sec, &frame) == EOF)
+         if (filestream_scanf(iso_file, "%d %d:%d:%d\r\n", &indexnum, &min, &sec, &frame) == EOF)
             break;
 
          if (indexnum == 1)
@@ -559,14 +556,14 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       }
       else if (strncmp(temp_buffer, "PREGAP", 6) == 0)
       {
-         if (fscanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
+         if (filestream_scanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
             break;
 
          pregap += MSF_TO_FAD(min, sec, frame);
       }
       else if (strncmp(temp_buffer, "POSTGAP", 7) == 0)
       {
-         if (fscanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
+         if (filestream_scanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
             break;
       }
    }
@@ -592,13 +589,13 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
 
    memcpy(disc.session[0].track, trk, track_num * sizeof(track_info_struct));
 
-   fclose(iso_file);
+   filestream_close(iso_file);
    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *mds_session, session_info_struct *session)
+int LoadMDSTracks(const char *mds_filename, RFILE *iso_file, mds_session_struct *mds_session, session_info_struct *session)
 {
    int i;
    int track_num=0;
@@ -615,11 +612,11 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
    for (i = 0; i < mds_session->total_blocks; i++)
    {
       mds_track_struct track;
-      FILE *fp=NULL;
+      RFILE *fp=NULL;
       int file_size = 0;
 
-      fseek(iso_file, mds_session->track_blocks_offset + i * sizeof(mds_track_struct), SEEK_SET);
-      if (fread(&track, 1, sizeof(mds_track_struct), iso_file) != sizeof(mds_track_struct))
+      filestream_seek(iso_file, mds_session->track_blocks_offset + i * sizeof(mds_track_struct), RETRO_VFS_SEEK_POSITION_START);
+      if (filestream_read(iso_file, &track, sizeof(mds_track_struct)) != sizeof(mds_track_struct))
       {
          YabSetError(YAB_ERR_FILEREAD, mds_filename);
          free(session->track);
@@ -654,15 +651,16 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
          }
          else
          {
-            fseek(iso_file, track.footer_offset, SEEK_SET);
-            if (fread(&footer, 1, sizeof(mds_footer_struct), iso_file) != sizeof(mds_footer_struct))
+            filestream_seek(iso_file, track.footer_offset, RETRO_VFS_SEEK_POSITION_START);
+            if (filestream_read(iso_file, &footer, sizeof(mds_footer_struct)) != sizeof(mds_footer_struct))
             {
                YabSetError(YAB_ERR_FILEREAD, mds_filename);
                free(session->track);
                return -1;
             }
 
-            fseek(iso_file, footer.filename_offset, SEEK_SET);
+            filestream_seek(iso_file, footer.filename_offset, RETRO_VFS_SEEK_POSITION_START);
+#if 0
             if (footer.is_widechar)
             {
                wchar_t filename[512];
@@ -685,19 +683,16 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                }
                else
                   wcscpy(filename, img_filename);
-#if defined(NX)
-               fp = fopen(filename, L"rb");
-#else
-               fp = _wfopen(filename, L"rb");
-#endif
+               fp = filestream_open(filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
             }
             else
             {
+#endif
                char filename[512];
                char img_filename[512];
                memset(img_filename, 0, 512);
 
-               if (fscanf(iso_file, "%512c", img_filename) != 1)
+               if (filestream_scanf(iso_file, "%512c", img_filename) != 1)
                {
                   YabSetError(YAB_ERR_FILEREAD, mds_filename);
                   free(session->track);
@@ -721,8 +716,10 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                else
                   strcpy(filename, img_filename);
 
-               fp = fopen(filename, "rb");
+               fp = filestream_open(filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+#if 0
             }
+#endif
 
             if (fp == NULL)
             {
@@ -731,9 +728,9 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                return -1;
             }
 
-            fseek(fp, 0, SEEK_END);
-            file_size = ftell(fp);
-            fseek(fp, 0, SEEK_SET);
+            filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_END);
+            file_size = filestream_tell(fp);
+            filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START);
          }
       }
 
@@ -760,14 +757,14 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
 
 //////////////////////////////////////////////////////////////////////////////
 
-static int LoadMDS(const char *mds_filename, FILE *iso_file)
+static int LoadMDS(const char *mds_filename, RFILE *iso_file)
 {
    s32 i;
    mds_header_struct header;
 
-   fseek(iso_file, 0, SEEK_SET);
+   filestream_seek(iso_file, 0, RETRO_VFS_SEEK_POSITION_START);
 
-   if (fread((void *)&header, 1, sizeof(mds_header_struct), iso_file) != sizeof(mds_header_struct))
+   if (filestream_read(iso_file, (void *)&header, sizeof(mds_header_struct)) != sizeof(mds_header_struct))
    {
       YabSetError(YAB_ERR_FILEREAD, mds_filename);
       return -1;
@@ -802,8 +799,8 @@ static int LoadMDS(const char *mds_filename, FILE *iso_file)
    {
       mds_session_struct session;
 
-      fseek(iso_file, header.sessions_blocks_offset + i * sizeof(mds_session_struct), SEEK_SET);
-      if (fread(&session, 1, sizeof(mds_session_struct), iso_file) != sizeof(mds_session_struct))
+      filestream_seek(iso_file, header.sessions_blocks_offset + i * sizeof(mds_session_struct), RETRO_VFS_SEEK_POSITION_START);
+      if (filestream_read(iso_file, &session, sizeof(mds_session_struct)) != sizeof(mds_session_struct))
       {
          free(disc.session);
          YabSetError(YAB_ERR_FILEREAD, mds_filename);
@@ -814,14 +811,14 @@ static int LoadMDS(const char *mds_filename, FILE *iso_file)
          return -1;
    }
 
-   fclose(iso_file);
+   filestream_close(iso_file);
 
    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static int LoadISO(FILE *iso_file)
+static int LoadISO(RFILE *iso_file)
 {
    track_info_struct *track;
 
@@ -851,8 +848,8 @@ static int LoadISO(FILE *iso_file)
    track->fad_start = 150;
    track->file_offset = 0;
    track->fp = iso_file;
-   fseek(iso_file, 0, SEEK_END);
-   track->file_size = ftell(iso_file);
+   filestream_seek(iso_file, 0, RETRO_VFS_SEEK_POSITION_END);
+   track->file_size = filestream_tell(iso_file);
    track->file_id = 0;
 
    if (0 == (track->file_size % 2048))
@@ -901,7 +898,7 @@ char* StripPreSuffixWhitespace(char* string)
 
 //////////////////////////////////////////////////////////////////////////////
 
-int LoadParseCCD(FILE *ccd_fp, ccd_struct *ccd)
+int LoadParseCCD(RFILE *ccd_fp, ccd_struct *ccd)
 {
 	char text[60], section[CCD_MAX_SECTION], old_name[CCD_MAX_NAME] = "";
 	char * start, *end, *name, *value;
@@ -914,7 +911,7 @@ int LoadParseCCD(FILE *ccd_fp, ccd_struct *ccd)
 	ccd->num_dict = 0;
 
 	// Read CCD file
-	while (fgets(text, sizeof(text), ccd_fp) != NULL)
+	while (filestream_gets(ccd_fp, text, sizeof(text)) != NULL)
 	{
 		lineno++;
 
@@ -988,13 +985,8 @@ static int GetIntCCD(ccd_struct *ccd, char *section, char *name)
 	int i;
 	for (i = 0; i < ccd->num_dict; i++)
 	{
-#if (defined(IOS) || defined(ANDROID) || defined(NX) )
         if (strcasecmp(ccd->dict[i].section, section) == 0 &&
             strcasecmp(ccd->dict[i].name, name) == 0)
-#else
-		if (stricmp(ccd->dict[i].section, section) == 0 &&
-			 stricmp(ccd->dict[i].name, name) == 0)
-#endif
 			return strtol(ccd->dict[i].value, NULL, 0);
 
 	}
@@ -1004,14 +996,14 @@ static int GetIntCCD(ccd_struct *ccd, char *section, char *name)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static int LoadCCD(const char *ccd_filename, FILE *iso_file)
+static int LoadCCD(const char *ccd_filename, RFILE *iso_file)
 {
 	int i;
 	ccd_struct ccd;
 	int num_toc;
 	char img_filename[512];
 	char *ext;
-	FILE *fp;
+	RFILE *fp;
    size_t ccd_filename_len = strlen(ccd_filename);
 
    if (ccd_filename_len >= 512)
@@ -1023,25 +1015,25 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 	strcpy(img_filename, ccd_filename);
 	ext = strrchr(img_filename, '.');
 	strcpy(ext, ".img");
-	fp = fopen(img_filename, "rb");
+	fp = filestream_open(img_filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 
 	if (fp == NULL)
 	{
 		ext = strrchr(img_filename, '.');
 		strcpy(ext, ".iso");
-		fp = fopen(img_filename, "rb");
+		fp = filestream_open(img_filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 		if (fp == NULL){
 			YabSetError(YAB_ERR_FILEREAD, img_filename);
 			return -1;
 		}
 	}
 
-	fseek(iso_file, 0, SEEK_SET);
+	filestream_seek(iso_file, 0, RETRO_VFS_SEEK_POSITION_START);
 
 	// Load CCD file as dictionary
 	if (LoadParseCCD(iso_file, &ccd))
 	{
-		fclose(fp);
+		filestream_close(fp);
 		YabSetError(YAB_ERR_FILEREAD, ccd_filename);
 		return -1;
 	}
@@ -1050,7 +1042,7 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 	disc.session_num = GetIntCCD(&ccd, "DISC", "Sessions");
 	if (disc.session_num != 1)
 	{
-		fclose(fp);
+		filestream_close(fp);
 		YabSetError(YAB_ERR_OTHER, "Sessions more than 1 are unsupported");
 		return -1;
 	}
@@ -1058,7 +1050,7 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 	disc.session = malloc(sizeof(session_info_struct) * disc.session_num);
 	if (disc.session == NULL)
 	{
-		fclose(fp);
+		filestream_close(fp);
 		free(ccd.dict);
 		YabSetError(YAB_ERR_MEMORYALLOC, NULL);
 		return -1;
@@ -1066,7 +1058,7 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 
 	if (GetIntCCD(&ccd, "DISC", "DataTracksScrambled"))
 	{
-		fclose(fp);
+		filestream_close(fp);
 		free(ccd.dict);
 		free(disc.session);
 		YabSetError(YAB_ERR_OTHER, "CCD Scrambled Tracks not supported");
@@ -1091,7 +1083,7 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 			disc.session[ses-1].track = (track_info_struct *)malloc(disc.session[ses-1].track_num * sizeof(track_info_struct));
 			if (disc.session[ses-1].track == NULL)
 			{
-				fclose(fp);
+				filestream_close(fp);
 				free(ccd.dict);
 				free(disc.session);
 				YabSetError(YAB_ERR_MEMORYALLOC, NULL);
@@ -1146,7 +1138,7 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 		}
 	}
 
-	fclose(iso_file);
+	filestream_close(iso_file);
 
 	return 0;
 }
@@ -1169,16 +1161,13 @@ void BuildTOC()
    isoTOC[101] = (isoTOC[session->track_num - 1] & 0xFF000000) | session->fad_end;
 }
 
-#if (defined(IOS) || defined(ANDROID) || defined(NX) )
-#define stricmp strcasecmp
-#endif
 //////////////////////////////////////////////////////////////////////////////
 
 static int ISOCDInit(const char * iso) {
    char header[6];
    char *ext;
    int ret;
-   FILE *iso_file;
+   RFILE *iso_file;
    size_t num_read = 0;
    memset(isoTOC, 0xFF, 0xCC * 2);
    memset(&disc, 0, sizeof(disc));
@@ -1187,29 +1176,29 @@ static int ISOCDInit(const char * iso) {
    if (!iso)
       return -1;
 
-   if (!(iso_file = fopen(iso, "rb")))
+   if (!(iso_file = filestream_open(iso, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE)))
    {
       YabSetError(YAB_ERR_FILENOTFOUND, (char *)iso);
       return -1;
    }
 
-   num_read = fread((void *)header, 1, 6, iso_file);
+   num_read = filestream_read(iso_file, (void *)header, 6);
    ext = strrchr(iso, '.');
 
    // Figure out what kind of image format we're dealing with
-   if (stricmp(ext, ".CUE") == 0)
+   if (strcasecmp(ext, ".CUE") == 0)
    {
       // It's a BIN/CUE
       imgtype = IMG_BINCUE;
       ret = LoadBinCue(iso, iso_file);
    }
-   else if (stricmp(ext, ".MDS") == 0 && strncmp(header, "MEDIA ", sizeof(header)) == 0)
+   else if (strcasecmp(ext, ".MDS") == 0 && strncmp(header, "MEDIA ", sizeof(header)) == 0)
    {
       // It's a MDS
       imgtype = IMG_MDS;
       ret = LoadMDS(iso, iso_file);
    }
-	else if (stricmp(ext, ".CCD") == 0)
+	else if (strcasecmp(ext, ".CCD") == 0)
 	{
 		// It's a CCD
 		imgtype = IMG_CCD;
@@ -1227,7 +1216,7 @@ static int ISOCDInit(const char * iso) {
       imgtype = IMG_NONE;
 
       if (iso_file)
-         fclose(iso_file);
+         filestream_close(iso_file);
       iso_file = NULL;
       return -1;
    }
@@ -1250,7 +1239,7 @@ static void ISOCDDeInit(void) {
             {
                if (disc.session[i].track[j].fp)
                {
-                  fclose(disc.session[i].track[j].fp);
+                  filestream_close(disc.session[i].track[j].fp);
 
                   // Make sure we don't close the same file twice
                   for (k = j+1; k < disc.session[i].track_num; k++)
@@ -1323,14 +1312,14 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
       return 0;
    }
    offset = currentTrack->file_offset + (FAD-currentTrack->fad_start) * currentTrack->sector_size;
-   
-   fseek(currentTrack->fp, offset, SEEK_SET);
+
+   filestream_seek(currentTrack->fp, offset, RETRO_VFS_SEEK_POSITION_START);
 
    if (currentTrack->sector_size == 2448)
    {
       if (!currentTrack->interleaved_sub)
       {
-         num_read = fread(buffer, 2448, 1, currentTrack->fp);
+         num_read = filestream_read(currentTrack->fp, buffer, 2448);
       }
       else
       {
@@ -1346,13 +1335,13 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
          };
          u8 subcode_buffer[96 * 3];
          
-         num_read = fread(buffer, 2352, 1, currentTrack->fp);
+         num_read = filestream_read(currentTrack->fp, buffer, 2352);
 
-         num_read = fread(subcode_buffer, 96, 1, currentTrack->fp);
-         fseek(currentTrack->fp, 2352, SEEK_CUR);
-         num_read = fread(subcode_buffer + 96, 96, 1, currentTrack->fp);
-         fseek(currentTrack->fp, 2352, SEEK_CUR);
-         num_read = fread(subcode_buffer + 192, 96, 1, currentTrack->fp);
+         num_read = filestream_read(currentTrack->fp, subcode_buffer, 96);
+         filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
+         num_read = filestream_read(currentTrack->fp, subcode_buffer + 96, 96);
+         filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
+         num_read = filestream_read(currentTrack->fp, subcode_buffer + 192, 96);
          for (i = 0; i < 96; i++)
             ((u8 *)buffer)[2352+i] = subcode_buffer[deint_offsets[i]];
       }
@@ -1360,12 +1349,12 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
    else if (currentTrack->sector_size == 2352)
    {
       // Generate subcodes here
-      num_read = fread(buffer, 2352, 1, currentTrack->fp);
+      num_read = filestream_read(currentTrack->fp, buffer, 2352);
    }
    else if (currentTrack->sector_size == 2048)
    {
       memcpy(buffer, syncHdr, 12);
-      num_read = fread((char *)buffer + 0x10, 2048, 1, currentTrack->fp);
+      num_read = filestream_read(currentTrack->fp, (char *)buffer + 0x10, 2048);
    }
 	return 1;
 }

@@ -10,7 +10,7 @@ OBJECTS_S :=
 SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/bios.c \
 	$(SOURCE_DIR)/c68k/c68k.c \
-	$(SOURCE_DIR)/cdbase.c \
+	$(SOURCE_DIR)/cd-libretro.c \
 	$(SOURCE_DIR)/cheat.c \
 	$(SOURCE_DIR)/coffelf.c \
 	$(SOURCE_DIR)/cs0.c \
@@ -91,8 +91,15 @@ SOURCES_C += $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
-	$(LIBRETRO_COMM_DIR)/file/file_path.c \
-	$(LIBRETRO_COMM_DIR)/streams/file_stream_transforms.c
+	$(LIBRETRO_COMM_DIR)/file/file_path.c
+	ifeq ($(HAVE_CDROM), 1)
+		FLAGS += -DHAVE_CDROM
+		SOURCES_C += $(LIBRETRO_COMM_DIR)/cdrom/cdrom.c \
+			$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation_cdrom.c \
+			$(LIBRETRO_COMM_DIR)/lists/string_list.c \
+			$(LIBRETRO_COMM_DIR)/lists/dir_list.c \
+			$(LIBRETRO_COMM_DIR)/file/retro_dirent.c
+	endif
 endif
 
 ifeq ($(HAVE_THREADS),1)
