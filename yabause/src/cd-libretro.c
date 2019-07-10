@@ -454,7 +454,7 @@ static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
    unsigned int track_num;
    unsigned int indexnum, min, sec, frame;
    unsigned int pregap=0;
-   track_info_struct trk[100];
+   track_info_struct* trk = calloc(100, sizeof(track_info_struct));
    int i;
    int matched = 0;
    RFILE *trackfp = NULL;
@@ -462,7 +462,6 @@ static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
    int fad = 0;
    int current_file_id = 0;
 
-   memset(trk, 0, sizeof(trk));
    disc.session_num = 1;
    disc.session = malloc(sizeof(session_info_struct) * disc.session_num);
    if (disc.session == NULL)
