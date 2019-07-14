@@ -50,11 +50,11 @@ else
 endif
 
 ifneq ($(HAVE_GRIFFIN), 1)
-ifeq ($(HAVE_PTHREADS),1)
-	HAVE_THREADS = 1
-	SOURCES_C += $(CORE_DIR)/thr-unix.c
+ifeq ($(USE_RTHREADS), 1)
+	SOURCES_C += $(SOURCE_DIR)/thr-rthreads.c \
+		$(LIBRETRO_COMM_DIR)/rthreads/rthreads.c
 else
-	SOURCES_C += $(SOURCE_DIR)/thr-dummy.c
+	SOURCES_C += $(CORE_DIR)/thr-unix.c
 endif
 endif
 

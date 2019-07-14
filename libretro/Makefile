@@ -1,7 +1,7 @@
 DEBUG = 0
 DYNAREC = 0
-HAVE_THREADS = 1
 HAVE_GRIFFIN = 0
+USE_RTHREADS = 1
 
 SPACE :=
 SPACE := $(SPACE) $(SPACE)
@@ -51,16 +51,13 @@ ifneq (,$(findstring unix,$(platform)))
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	#DYNAREC = 2
-	FLAGS += -pthread
-	LDFLAGS += -pthread
-	HAVE_PTHREADS = 1
+	LDFLAGS += -lpthread
 
 else ifneq (,$(findstring linux-portable,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC -nostdlib
 	SHARED := -shared -Wl,--version-script=link.T
 	#DYNAREC = 2
-	HAVE_PTHREADS = 1
 
 # OS X
 else ifneq (,$(findstring osx,$(platform)))
@@ -77,9 +74,7 @@ ifeq ($(arch),ppc)
 	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 endif
 	#DYNAREC = 2
-	FLAGS += -pthread
-	LDFLAGS += -pthread
-	HAVE_PTHREADS = 1
+	LDFLAGS += -lpthread
 
 else ifneq (,$(findstring theos_ios,$(platform)))
 	# Theos iOS
@@ -196,7 +191,6 @@ else ifeq ($(platform), libnx)
     CFLAGS	+=	$(INCLUDE)  -D__SWITCH__ -DHAVE_LIBNX
     CXXFLAGS := $(ASFLAGS) $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
     CFLAGS += -std=gnu11
-	HAVE_THREADS = 0
 	STATIC_LINKING = 1
 
 # ARM
@@ -204,9 +198,7 @@ else ifneq (,$(findstring armv,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	FLAGS += -pthread
-	LDFLAGS += -pthread
-	HAVE_PTHREADS = 1
+	LDFLAGS += -lpthread
 	ifneq (,$(findstring cortexa8,$(platform)))
 		FLAGS += -marm -mcpu=cortex-a8
 	else ifneq (,$(findstring cortexa9,$(platform)))
@@ -236,7 +228,6 @@ else ifeq ($(platform), gcw0)
 	CXX = /opt/gcw0-toolchain/usr/bin/mipsel-linux-g++
 	AR = /opt/gcw0-toolchain/usr/bin/mipsel-linux-ar
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	#HAVE_PTHREADS = 1
 	LDFLAGS += $(PTHREAD_FLAGS) -lrt
 	FLAGS += $(PTHREAD_FLAGS) -DHAVE_MKDIR
 	FLAGS += -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float
