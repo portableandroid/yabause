@@ -254,7 +254,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 		HAVE_UWP = 1
 	endif
 
-	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP
+	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP -DHAVE_THREAD_STORAGE
 	CFLAGS += $(MSVC2017CompileFlags)
 	CXXFLAGS += $(MSVC2017CompileFlags)
 
@@ -336,7 +336,7 @@ else
 	CXX = g++
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
-	FLAGS += -DHAVE_WFOPEN
+	FLAGS += -DHAVE_WFOPEN -DHAVE_THREAD_STORAGE
 	#DYNAREC = 2
 
 endif
