@@ -1318,7 +1318,7 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
    {
       if (!currentTrack->interleaved_sub)
       {
-         num_read = filestream_read(currentTrack->fp, buffer, 2448);
+         num_read = (filestream_read(currentTrack->fp, buffer, 2448)/2448);
       }
       else
       {
@@ -1334,13 +1334,13 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
          };
          u8 subcode_buffer[96 * 3];
          
-         num_read = filestream_read(currentTrack->fp, buffer, 2352);
+         num_read = (filestream_read(currentTrack->fp, buffer, 2352)/2352);
 
-         num_read = filestream_read(currentTrack->fp, subcode_buffer, 96);
+         num_read = (filestream_read(currentTrack->fp, subcode_buffer, 96)/96);
          filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
-         num_read = filestream_read(currentTrack->fp, subcode_buffer + 96, 96);
+         num_read = (filestream_read(currentTrack->fp, subcode_buffer + 96, 96)/96);
          filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
-         num_read = filestream_read(currentTrack->fp, subcode_buffer + 192, 96);
+         num_read = (filestream_read(currentTrack->fp, subcode_buffer + 192, 96)/96);
          for (i = 0; i < 96; i++)
             ((u8 *)buffer)[2352+i] = subcode_buffer[deint_offsets[i]];
       }
@@ -1348,12 +1348,12 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
    else if (currentTrack->sector_size == 2352)
    {
       // Generate subcodes here
-      num_read = filestream_read(currentTrack->fp, buffer, 2352);
+      num_read = (filestream_read(currentTrack->fp, buffer, 2352)/2352);
    }
    else if (currentTrack->sector_size == 2048)
    {
       memcpy(buffer, syncHdr, 12);
-      num_read = filestream_read(currentTrack->fp, (char *)buffer + 0x10, 2048);
+      num_read = (filestream_read(currentTrack->fp, (char *)buffer + 0x10, 2048)/2048);
    }
 	return 1;
 }

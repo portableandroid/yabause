@@ -2,6 +2,7 @@ DEBUG = 0
 DYNAREC = 0
 HAVE_GRIFFIN = 0
 USE_RTHREADS = 1
+HAVE_UWP = 0
 
 SPACE :=
 SPACE := $(SPACE) $(SPACE)
@@ -250,6 +251,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 		MSVC2017CompileFlags = -DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_WINDLL -D_UNICODE -DUNICODE -D__WRL_NO_DEFAULT_LIB__ -EHsc -FS
 		LDFLAGS += -APPCONTAINER -NXCOMPAT -DYNAMICBASE -MANIFEST:NO -LTCG -OPT:REF -SUBSYSTEM:CONSOLE -MANIFESTUAC:NO -OPT:ICF -ERRORREPORT:PROMPT -NOLOGO -TLBID:1 -DEBUG:FULL -WINMD:NO
 		LIBS += WindowsApp.lib
+		HAVE_UWP = 1
 	endif
 
 	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP
@@ -341,7 +343,7 @@ endif
 
 include Makefile.common
 
-OBJECTS += $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o) $(C68KEXEC_OBJECT)
+OBJECTS += $(SOURCES_C:.c=.c.o) $(SOURCES_CXX:.cpp=.cpp.o) $(C68KEXEC_OBJECT)
 
 LDFLAGS += $(fpic) $(SHARED)
 FLAGS += $(fpic)
@@ -421,23 +423,23 @@ $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
-	$(LD) $(LDFLAGS) $(LINKOUT)$@ $(OBJECTS) $(LIBS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 endif
 
-%.o: %.S
+%.S.o: %.S
 	$(CC_AS) $(CFLAGS) -c $^ -o $@
 
-%.o: %.s
+%.s.o: %.s
 	$(CC_AS) $(CFLAGS) -c $^ -o $@
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $(OBJOUT)$@ $<
+%.cpp.o: %.cpp
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $(OBJOUT)$@ $<
-	
+%.c.o: %.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
 $(C68KEXEC_OBJECT): $(C68KEXEC_SOURCE)
-	$(CC) $(C68KFLAGS) -c $(OBJOUT)$@ $<
+	$(CC) -c -o $@ $< $(CFLAGS) -O0
 
 clean:
 	rm -f $(TARGET) $(OBJECTS)
