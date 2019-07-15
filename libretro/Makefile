@@ -1,7 +1,8 @@
 DEBUG = 0
 DYNAREC = 0
 HAVE_GRIFFIN = 0
-USE_RTHREADS = 1
+HAVE_THREADS = 1
+ARCH_IS_UNIX = 1
 HAVE_UWP = 0
 
 SPACE :=
@@ -43,7 +44,7 @@ TARGET_NAME = yabause
 CC_AS ?= $(CC)
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")
-	CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
+	FLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 endif
 
 # Unix
@@ -52,13 +53,16 @@ ifneq (,$(findstring unix,$(platform)))
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	#DYNAREC = 2
-	LDFLAGS += -lpthread
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 
 else ifneq (,$(findstring linux-portable,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC -nostdlib
 	SHARED := -shared -Wl,--version-script=link.T
 	#DYNAREC = 2
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 
 # OS X
 else ifneq (,$(findstring osx,$(platform)))
@@ -75,7 +79,8 @@ ifeq ($(arch),ppc)
 	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 endif
 	#DYNAREC = 2
-	LDFLAGS += -lpthread
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 
 else ifneq (,$(findstring theos_ios,$(platform)))
 	# Theos iOS
@@ -154,6 +159,7 @@ else ifneq (,$(findstring vita,$(platform)))
 	AR = arm-vita-eabi-ar$(EXE_EXT)
 	ENDIANNESS_DEFINES += -DVITA
 	#DYNAREC = 2
+	HAVE_THREADS = 0
 	STATIC_LINKING = 1
 
 # Nintendo Game Cube
@@ -199,7 +205,8 @@ else ifneq (,$(findstring armv,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread
+	FLAGS += -pthread
+	LDFLAGS += -pthread
 	ifneq (,$(findstring cortexa8,$(platform)))
 		FLAGS += -marm -mcpu=cortex-a8
 	else ifneq (,$(findstring cortexa9,$(platform)))
@@ -254,9 +261,8 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 		HAVE_UWP = 1
 	endif
 
-	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP -DHAVE_THREAD_STORAGE
-	CFLAGS += $(MSVC2017CompileFlags)
-	CXXFLAGS += $(MSVC2017CompileFlags)
+	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP
+	FLAGS += $(MSVC2017CompileFlags)
 
 	TargetArchMoniker = $(subst $(WinPartition)_,,$(PlatformSuffix))
 
@@ -328,6 +334,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dll
 	PSS_STYLE :=2
 	LDFLAGS += -DLL
+	ARCH_IS_UNIX = 0
 
 # Windows
 else
@@ -336,7 +343,8 @@ else
 	CXX = g++
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
-	FLAGS += -DHAVE_WFOPEN -DHAVE_THREAD_STORAGE
+	FLAGS += -DHAVE_WFOPEN
+	ARCH_IS_UNIX = 0
 	#DYNAREC = 2
 
 endif
@@ -350,11 +358,12 @@ FLAGS += $(fpic)
 
 WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
-			-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DVERSION=\"0.9.12\" -DHAVE_STRCASECMP -DINLINE="inline"
+			-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DVERSION=\"0.9.14\" -DHAVE_STRCASECMP -DINLINE="inline" -DHAVE_THREAD_STORAGE
 
 CXXFLAGS += $(FLAGS)
-
 CFLAGS += $(FLAGS)
+C68KFLAGS += $(FLAGS)
+
 ifeq (,$(findstring msvc,$(platform)))
 	ifeq ($(platform),qnx)
 		CFLAGS += -Wc,-std=c99
@@ -375,39 +384,43 @@ else
 endif
 
 ifeq ($(DEBUG), 1)
-    ifneq (,$(findstring msvc,$(platform)))
-        ifeq ($(STATIC_LINKING),1)
-            CFLAGS += -MTd
-            CXXFLAGS += -MTd
-        else
-            CFLAGS += -MDd
-            CXXFLAGS += -MDd
-        endif
-        CFLAGS += -Od -Zi -DDEBUG -D_DEBUG
-		C68KFLAGS = $(CFLAGS)
-        CXXFLAGS += -Od -Zi -DDEBUG -D_DEBUG
-    else
-        CFLAGS += -O0 -g -DDEBUG
-		C68KFLAGS = $(CFLAGS)
-        CXXFLAGS += -O0 -g -DDEBUG
-    endif
+	ifneq (,$(findstring msvc,$(platform)))
+		ifeq ($(STATIC_LINKING),1)
+			CFLAGS += -MTd
+			CXXFLAGS += -MTd
+			C68KFLAGS += -MTd
+		else
+			CFLAGS += -MDd
+			CXXFLAGS += -MDd
+			C68KFLAGS += -MDd
+		endif
+		CFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+		CXXFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+		C68KFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+	else
+		CFLAGS += -O0 -g -DDEBUG
+		CXXFLAGS += -O0 -g -DDEBUG
+		C68KFLAGS += -O0 -g -DDEBUG
+	endif
 else
-    ifneq (,$(findstring msvc,$(platform)))
-        ifeq ($(STATIC_LINKING),1)
-            CFLAGS += -MT
-            CXXFLAGS += -MT
-        else
-            CFLAGS += -MD
-            CXXFLAGS += -MD
-        endif
-		C68KFLAGS = $(CFLAGS) -O0 -DNDEBUG
-        CFLAGS += -O2 -DNDEBUG
-        CXXFLAGS += -O2 -DNDEBUG
-    else
-		C68KFLAGS = $(CFLAGS) -O0 -DNDEBUG
-        CFLAGS += -O3 -DNDEBUG
-        CXXFLAGS += -O3 -DNDEBUG
-    endif
+	ifneq (,$(findstring msvc,$(platform)))
+		ifeq ($(STATIC_LINKING),1)
+			CFLAGS += -MT
+			CXXFLAGS += -MT
+			C68KFLAGS += -MT
+		else
+			CFLAGS += -MD
+			CXXFLAGS += -MD
+			C68KFLAGS += -MD
+		endif
+		CFLAGS += -O2 -DNDEBUG
+		CXXFLAGS += -O2 -DNDEBUG
+		C68KFLAGS += -O0 -DNDEBUG
+	else
+		CFLAGS += -O3 -DNDEBUG
+		CXXFLAGS += -O3 -DNDEBUG
+		C68KFLAGS += -O0 -DNDEBUG
+	endif
 endif
 
 ifeq ($(platform), theos_ios)
@@ -423,7 +436,7 @@ $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(LD) $(LDFLAGS) $(LINKOUT)$@ $(OBJECTS) $(LIBS)
 endif
 
 %.S.o: %.S
@@ -433,13 +446,13 @@ endif
 	$(CC_AS) $(CFLAGS) -c $^ -o $@
 
 %.cpp.o: %.cpp
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
+	$(CXX) -c $(OBJOUT)$@ $< $(CXXFLAGS)
 
 %.c.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c $(OBJOUT)$@ $< $(CFLAGS)
 
 $(C68KEXEC_OBJECT): $(C68KEXEC_SOURCE)
-	$(CC) -c -o $@ $< $(CFLAGS) -O0
+	$(CC) -c $(OBJOUT)$@ $< $(C68KFLAGS)
 
 clean:
 	rm -f $(TARGET) $(OBJECTS)

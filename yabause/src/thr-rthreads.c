@@ -37,41 +37,37 @@ struct thd_s {
 };
 
 static struct thd_s thread_handle[YAB_NUM_THREADS];
-
-#ifdef _WIN32
-#ifdef HAVE_THREAD_STORAGE
 static sthread_tls_t hnd_key;
 static int hnd_key_once = 0;
-#endif
-#endif
 
 //////////////////////////////////////////////////////////////////////////////
 
 int YabThreadStart(unsigned int id, void (*func)(void *), void *arg)
 {
-#ifdef _WIN32
-#ifdef HAVE_THREAD_STORAGE
 	if (hnd_key_once == 0)
 	{
 		if(sthread_tls_create(&hnd_key));
 			hnd_key_once = 1;
 	}
-#endif
-#endif
 
-	if ((thread_handle[id].thd = sthread_create((void *)func, arg)) == NULL)
+	if (thread_handle[id].running)
 	{
-		perror("CreateThread");
 		return -1;
 	}
 	if ((thread_handle[id].mutex = slock_new()) == NULL)
 	{
-		perror("CreateThread");
 		return -1;
 	}
 	if ((thread_handle[id].cond = scond_new()) == NULL)
 	{
-		perror("CreateThread");
+		slock_free(thread_handle[id].mutex);
+		return -1;
+	}
+
+	if ((thread_handle[id].thd = sthread_create((void *)func, arg)))
+	{
+		scond_free(thread_handle[id].cond);
+		slock_free(thread_handle[id].mutex);
 		return -1;
 	}
 
@@ -86,6 +82,8 @@ void YabThreadWait(unsigned int id)
 		return;  // Thread wasn't running in the first place
 
 	sthread_join(thread_handle[id].thd);
+	scond_free(thread_handle[id].cond);
+	slock_free(thread_handle[id].mutex);
 	thread_handle[id].thd = NULL;
 	thread_handle[id].running = 0;
 }
@@ -101,24 +99,8 @@ void YabThreadYield(void)
 
 void YabThreadSleep(void)
 {
-#ifdef _WIN32
-#ifdef HAVE_THREAD_STORAGE
-	struct thd_s *thd = (struct thd_s *)sthread_tls_get(hnd_key);
-	WaitForSingleObject(thd->cond,INFINITE);
-#endif
-#else
-	pause();
-#endif
-}
-
-void YabThreadRemoteSleep(unsigned int id)
-{
-#ifdef _WIN32
-	if (!thread_handle[id].thd)
-		return;
-
-	WaitForSingleObject(thread_handle[id].cond,INFINITE);
-#endif
+	struct thd_s *thd = (struct thd_s *)sthread_tls_get(&hnd_key);
+	scond_wait(thd->cond, thd->mutex);
 }
 
 void YabThreadWake(unsigned int id)

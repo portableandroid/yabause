@@ -1,7 +1,7 @@
 #include "../yabause/src/snddummy.c"
 
 #ifdef HAVE_THREADS
-#include "thr-unix.c"
+#include "../yabause/src/thr-rthreads.c"
 #else
 #include "../yabause/src/thr-dummy.c"
 #endif

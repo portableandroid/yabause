@@ -35,27 +35,28 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/sh2idle.c \
 	$(SOURCE_DIR)/sh2int.c \
 	$(SOURCE_DIR)/sh2trace.c \
-	$(SOURCE_DIR)/smpc.c \
+	$(SOURCE_DIR)/smpc.c
 
 ifeq ($(HAVE_GRIFFIN), 1)
 	SOURCES_C += $(LIBRETRO_DIR)/yabause_griffin.c
 else
 	SOURCES_C +=  $(SOURCE_DIR)/snddummy.c \
-	$(SOURCE_DIR)/vdp1.c \
-	$(SOURCE_DIR)/vdp2.c \
-	$(SOURCE_DIR)/vidshared.c \
-	$(SOURCE_DIR)/vidsoft.c \
-	$(SOURCE_DIR)/titan/titan.c \
-	$(SOURCE_DIR)/yabause.c
-endif
-
-ifneq ($(HAVE_GRIFFIN), 1)
-ifeq ($(USE_RTHREADS), 1)
-	SOURCES_C += $(SOURCE_DIR)/thr-rthreads.c \
-		$(LIBRETRO_COMM_DIR)/rthreads/rthreads.c
-else
-	SOURCES_C += $(CORE_DIR)/thr-unix.c
-endif
+		$(SOURCE_DIR)/vdp1.c \
+		$(SOURCE_DIR)/vdp2.c \
+		$(SOURCE_DIR)/vidshared.c \
+		$(SOURCE_DIR)/vidsoft.c \
+		$(SOURCE_DIR)/titan/titan.c \
+		$(SOURCE_DIR)/yabause.c \
+		$(CORE_DIR)/libretro.c
+	ifeq ($(HAVE_THREADS), 1)
+		ifeq ($(ARCH_IS_UNIX), 1)
+			SOURCES_C += $(CORE_DIR)/thr-unix.c
+		else
+			SOURCES_C += $(SOURCE_DIR)/thr-windows.c
+		endif
+	else
+		SOURCES_C += $(SOURCE_DIR)/thr-dummy.c
+	endif
 endif
 
 ifeq ($(HAVE_GL),1)
@@ -63,10 +64,6 @@ SOURCES_C += \
 	$(SOURCE_DIR)/ygles.c \
 	$(SOURCE_DIR)/vidogl.c \
 	$(SOURCE_DIR)/yglshaderes.c
-endif
-
-ifneq ($(HAVE_GRIFFIN), 1)
-SOURCES_C += $(CORE_DIR)/libretro.c
 endif
 
 C68KEXEC_SOURCE := $(SOURCE_DIR)/c68k/c68kexec.c
@@ -91,6 +88,9 @@ SOURCES_C += $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
 	$(LIBRETRO_COMM_DIR)/file/file_path.c
+	#ifeq ($(HAVE_THREADS), 1)
+	#	SOURCES_C += $(LIBRETRO_COMM_DIR)/rthreads/rthreads.c
+	#endif
 	ifeq ($(HAVE_CDROM), 1)
 		FLAGS += -DHAVE_CDROM
 		SOURCES_C += $(LIBRETRO_COMM_DIR)/cdrom/cdrom.c \
