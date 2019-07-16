@@ -14,7 +14,7 @@ endif
 
 include $(CORE_DIR)/Makefile.common
 
-COREFLAGS := -DINLINE=inline -D__LIBRETRO__ -DVERSION=\"0.9.12\" -DUSE_SCSP2=1 -DNO_CLI -DHAVE_GETTIMEOFDAY -DHAVE_STRCASECMP $(INCFLAGS) $(FLAGS)
+COREFLAGS := -DINLINE=inline -D__LIBRETRO__ -DVERSION=\"0.9.14\" -DUSE_SCSP2=1 -DNO_CLI -DHAVE_GETTIMEOFDAY -DHAVE_STRCASECMP $(INCFLAGS) $(FLAGS)
 
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")

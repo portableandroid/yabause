@@ -2,7 +2,6 @@ DEBUG = 0
 DYNAREC = 0
 HAVE_GRIFFIN = 0
 HAVE_THREADS = 1
-ARCH_IS_UNIX = 1
 HAVE_UWP = 0
 
 SPACE :=
@@ -159,7 +158,6 @@ else ifneq (,$(findstring vita,$(platform)))
 	AR = arm-vita-eabi-ar$(EXE_EXT)
 	ENDIANNESS_DEFINES += -DVITA
 	#DYNAREC = 2
-	HAVE_THREADS = 0
 	STATIC_LINKING = 1
 
 # Nintendo Game Cube
@@ -334,7 +332,6 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dll
 	PSS_STYLE :=2
 	LDFLAGS += -DLL
-	ARCH_IS_UNIX = 0
 
 # Windows
 else
@@ -344,7 +341,6 @@ else
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
 	FLAGS += -DHAVE_WFOPEN
-	ARCH_IS_UNIX = 0
 	#DYNAREC = 2
 
 endif
@@ -358,7 +354,7 @@ FLAGS += $(fpic)
 
 WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
-			-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DVERSION=\"0.9.14\" -DHAVE_STRCASECMP -DINLINE="inline" -DHAVE_THREAD_STORAGE
+			-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DVERSION=\"0.9.14\" -DHAVE_STRCASECMP -DINLINE="inline"
 
 CXXFLAGS += $(FLAGS)
 CFLAGS += $(FLAGS)

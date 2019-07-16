@@ -49,11 +49,7 @@ else
 		$(SOURCE_DIR)/yabause.c \
 		$(CORE_DIR)/libretro.c
 	ifeq ($(HAVE_THREADS), 1)
-		ifeq ($(ARCH_IS_UNIX), 1)
-			SOURCES_C += $(CORE_DIR)/thr-unix.c
-		else
-			SOURCES_C += $(SOURCE_DIR)/thr-windows.c
-		endif
+		SOURCES_C += $(SOURCE_DIR)/thr-rthreads.c
 	else
 		SOURCES_C += $(SOURCE_DIR)/thr-dummy.c
 	endif
@@ -88,9 +84,9 @@ SOURCES_C += $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
 	$(LIBRETRO_COMM_DIR)/file/file_path.c
-	#ifeq ($(HAVE_THREADS), 1)
-	#	SOURCES_C += $(LIBRETRO_COMM_DIR)/rthreads/rthreads.c
-	#endif
+	ifeq ($(HAVE_THREADS), 1)
+		SOURCES_C += $(LIBRETRO_COMM_DIR)/rthreads/rthreads.c
+	endif
 	ifeq ($(HAVE_CDROM), 1)
 		FLAGS += -DHAVE_CDROM
 		SOURCES_C += $(LIBRETRO_COMM_DIR)/cdrom/cdrom.c \

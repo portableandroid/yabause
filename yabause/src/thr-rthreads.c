@@ -18,16 +18,15 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sched.h>
-#include <unistd.h>
-#include <errno.h>
 #endif
 
 #include "core.h"
 #include "threads.h"
 #include "rthreads/rthreads.h"
-#include <stdlib.h>
 
 struct thd_s {
 	int running;
@@ -37,37 +36,25 @@ struct thd_s {
 };
 
 static struct thd_s thread_handle[YAB_NUM_THREADS];
-static sthread_tls_t hnd_key;
-static int hnd_key_once = 0;
 
 //////////////////////////////////////////////////////////////////////////////
 
 int YabThreadStart(unsigned int id, void (*func)(void *), void *arg)
 {
-	if (hnd_key_once == 0)
+	if (thread_handle[id].running == 1)
 	{
-		if(sthread_tls_create(&hnd_key));
-			hnd_key_once = 1;
+		return -1;
 	}
 
-	if (thread_handle[id].running)
-	{
-		return -1;
-	}
-	if ((thread_handle[id].mutex = slock_new()) == NULL)
-	{
-		return -1;
-	}
+	thread_handle[id].mutex = slock_new();
+
 	if ((thread_handle[id].cond = scond_new()) == NULL)
 	{
-		slock_free(thread_handle[id].mutex);
 		return -1;
 	}
 
-	if ((thread_handle[id].thd = sthread_create((void *)func, arg)))
+	if ((thread_handle[id].thd = sthread_create((void *)func, arg)) == NULL)
 	{
-		scond_free(thread_handle[id].cond);
-		slock_free(thread_handle[id].mutex);
 		return -1;
 	}
 
@@ -78,20 +65,18 @@ int YabThreadStart(unsigned int id, void (*func)(void *), void *arg)
 
 void YabThreadWait(unsigned int id)
 {
-	if (!thread_handle[id].thd)
+	if (thread_handle[id].running != 1)
 		return;  // Thread wasn't running in the first place
 
 	sthread_join(thread_handle[id].thd);
-	scond_free(thread_handle[id].cond);
-	slock_free(thread_handle[id].mutex);
-	thread_handle[id].thd = NULL;
+
 	thread_handle[id].running = 0;
 }
 
 void YabThreadYield(void)
 {
 #ifdef _WIN32
-	SleepEx(0, 0);
+	SwitchToThread();
 #else
 	sched_yield();
 #endif
@@ -99,16 +84,36 @@ void YabThreadYield(void)
 
 void YabThreadSleep(void)
 {
-	struct thd_s *thd = (struct thd_s *)sthread_tls_get(&hnd_key);
-	scond_wait(thd->cond, thd->mutex);
+	unsigned int i, id;
+
+	id = YAB_NUM_THREADS;
+
+	for(i = 0;i < YAB_NUM_THREADS;i++)
+	{
+		if(sthread_isself(thread_handle[i].thd)) {
+			id = i;
+		}
+	}
+
+	if (id == YAB_NUM_THREADS) return;
+
+	slock_lock(thread_handle[id].mutex);
+	scond_wait(thread_handle[id].cond, thread_handle[id].mutex);
+	slock_unlock(thread_handle[id].mutex);
+}
+
+void YabThreadRemoteSleep(unsigned int id)
+{
 }
 
 void YabThreadWake(unsigned int id)
 {
-	if (!thread_handle[id].thd)
+	if (thread_handle[id].running != 1)
 		return;  // Thread wasn't running in the first place
 
+	slock_lock(thread_handle[id].mutex);
 	scond_signal(thread_handle[id].cond);
+	slock_unlock(thread_handle[id].mutex);
 }
 
 //////////////////////////////////////////////////////////////////////////////
