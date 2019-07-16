@@ -104,6 +104,43 @@ else ifeq ($(platform), arm64)
 	DYNAREC_DEVMIYAX = 1
 	ALLOW_POLYGON_MODE = 0
 
+# Amlogic S922X Odroid-N2 / A311D Khadas VIM3 (AMLG12B) - 32-bit userspace
+else ifneq (,$(findstring AMLG12B,$(platform)))
+	override platform += unix
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	LDFLAGS += -lpthread
+	ARCH_IS_LINUX = 1
+	HAVE_SSE = 0
+	FORCE_GLES = 1
+	USE_ARM_DRC = 1
+	DYNAREC_DEVMIYAX = 1
+	ALLOW_POLYGON_MODE = 0
+	FLAGS += -march=armv8-a+crc -mtune=cortex-a73.cortex-a53 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mvectorize-with-neon-quad
+
+# Rockchip RK3288 / RK3399 - 32-bit userspace
+else ifneq (,$(findstring RK,$(platform)))
+	override platform += unix
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	LDFLAGS += -lpthread
+	ARCH_IS_LINUX = 1
+	HAVE_SSE = 0
+	FORCE_GLES = 1
+	USE_ARM_DRC = 1
+	DYNAREC_DEVMIYAX = 1
+	LOW_END = 1
+	ALLOW_POLYGON_MODE = 0
+	
+	ifneq (,$(findstring RK3399,$(platform)))
+		FLAGS += -march=armv8-a+crc -mtune=cortex-a72.cortex-a53 -mfpu=neon-fp-armv8 
+	else ifneq (,$(findstring RK3288,$(platform)))
+		FLAGS += -march=armv7ve -mtune=cortex-a17 -mfpu=neon-vfpv4
+	endif
+	FLAGS += -mfloat-abi=hard -mvectorize-with-neon-quad
+
 # RockPro64
 else ifneq (,$(findstring rockpro64,$(platform)))
 	override platform += unix
