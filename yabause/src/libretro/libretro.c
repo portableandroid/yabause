@@ -75,6 +75,7 @@ static int max_resolution_mode = 2;
 static int max_resolution_mode = 4;
 #endif
 static int polygon_mode = PERSPECTIVE_CORRECTION;
+static bool rendering_started = false;
 static int pad_type[12] = {1,1,1,1,1,1,1,1,1,1,1,1};
 static int multitap[2] = {0,0};
 static unsigned players = 7;
@@ -843,7 +844,8 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 size_t retro_serialize_size(void)
 {
    // Disabling savestates until they are safe
-   return 0;
+   if (!rendering_started)
+      return 0;
    void *buffer;
    size_t size;
 
@@ -859,7 +861,8 @@ size_t retro_serialize_size(void)
 bool retro_serialize(void *data, size_t size)
 {
    // Disabling savestates until they are safe
-   return true;
+   if (!rendering_started)
+      return true;
    void *buffer;
    size_t out_size;
 
@@ -874,7 +877,8 @@ bool retro_serialize(void *data, size_t size)
 bool retro_unserialize(const void *data, size_t size)
 {
    // Disabling savestates until they are safe
-   return true;
+   if (!rendering_started)
+      return true;
    int error = YabLoadStateBuffer(data, size);
    retro_set_resolution();
 
@@ -1323,6 +1327,7 @@ void retro_run(void)
 {
    unsigned i;
    bool updated  = false;
+   rendering_started = true;
    one_frame_rendered = false;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)

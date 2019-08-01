@@ -405,7 +405,7 @@ FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
 	-DHAVE_LIBGL -DVERSION=\"2.5.1\"
 
 CXXFLAGS += $(FLAGS) -std=gnu++11
-CFLAGS += $(FLAGS) -std=gnu99
+CFLAGS += $(FLAGS) -std=gnu11
 
 all: $(TARGET)
 
