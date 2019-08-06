@@ -179,7 +179,7 @@ static int nbg2priority = 0;
 static int nbg3priority = 0;
 static int rbg0priority = 0;
 
-
+u8 AC_VRAM[4][8];
 
 RBGDrawInfo g_rgb0;
 RBGDrawInfo g_rgb1;
@@ -193,7 +193,7 @@ static void Vdp2DrawRBG0(void);
 
 static u32 Vdp2ColorRamGetColor(u32 colorindex, int alpha);
 static void Vdp2PatternAddrPos(vdp2draw_struct *info, int planex, int x, int planey, int y);
-static void Vdp2DrawPatternPos(vdp2draw_struct *info, YglTexture *texture, int x, int y, int cx, int cy);
+static void Vdp2DrawPatternPos(vdp2draw_struct *info, YglTexture *texture, int x, int y, int cx, int cy, int lines);
 static INLINE void ReadVdp2ColorOffset(Vdp2 * regs, vdp2draw_struct *info, int mask);
 static INLINE u16 Vdp2ColorRamGetColorRaw(u32 colorindex);
 static void FASTCALL Vdp2DrawRotation(RBGDrawInfo * rbg);
@@ -1867,7 +1867,7 @@ static INLINE u32 Vdp2GetPixel8bpp(vdp2draw_struct *info, u32 addr, YglTexture *
   u16 dotw = T1ReadWord(Vdp2Ram, addr & 0x7FFFF);
   u8 dot;
   u32 alpha = info->alpha;
-  
+
   alpha = info->alpha;
   dot = (dotw & 0xFF00)>>8;
   if (!(dot & 0xFF) && info->transparencyenable) *texture->textdata++ = 0x00000000;
@@ -1924,6 +1924,19 @@ static INLINE u32 Vdp2GetPixel32bppbmp(vdp2draw_struct *info, u32 addr) {
 static void FASTCALL Vdp2DrawCell(vdp2draw_struct *info, YglTexture *texture)
 {
   int i, j;
+
+  // Access Denied(Wizardry - Llylgamyn Saga)
+  if (info->char_bank[info->charaddr>>17] == 0) {
+    for (i = 0; i < info->cellh; i++)
+    {
+      for (j = 0; j < info->cellw; j++)
+      {
+        *texture->textdata++ = 0x00000000;
+      }
+      texture->textdata += texture->w;
+    }
+    return;
+  }
 
   switch (info->colornumber)
   {
@@ -2205,7 +2218,7 @@ static void FASTCALL Vdp2DrawBitmapCoordinateInc(vdp2draw_struct *info, YglTextu
   }
 }
 
-static void Vdp2DrawPatternPos(vdp2draw_struct *info, YglTexture *texture, int x, int y, int cx, int cy)
+static void Vdp2DrawPatternPos(vdp2draw_struct *info, YglTexture *texture, int x, int y, int cx, int cy, int lines )
 {
   u64 cacheaddr = ((u32)(info->alpha >> 3) << 27) |
     (info->paladdr << 20) | info->charaddr | info->transparencyenable |
@@ -2242,9 +2255,9 @@ static void Vdp2DrawPatternPos(vdp2draw_struct *info, YglTexture *texture, int x
   tile.vertices[2] = (x + tile.cellw);
   tile.vertices[3] = y;
   tile.vertices[4] = (x + tile.cellh);
-  tile.vertices[5] = (y + (float)info->lineinc);
+  tile.vertices[5] = (y + lines /*(float)info->lineinc*/);
   tile.vertices[6] = x;
-  tile.vertices[7] = (y + (float)info->lineinc);
+  tile.vertices[7] = (y + lines/*(float)info->lineinc*/ );
 
   // Screen culling
   //if (tile.vertices[0] >= vdp2width || tile.vertices[1] >= vdp2height || tile.vertices[2] < 0 || tile.vertices[5] < 0)
@@ -2350,6 +2363,7 @@ static void Vdp2PatternAddrUsingPatternname(vdp2draw_struct *info, u16 paternnam
 
 static void Vdp2PatternAddr(vdp2draw_struct *info)
 {
+  info->addr &= 0x7FFFF;
   switch (info->patterndatasize)
   {
   case 1:
@@ -2491,7 +2505,7 @@ static void Vdp2PatternAddrPos(vdp2draw_struct *info, int planex, int x, int pla
   case 2: {
     u16 tmp1 = T1ReadWord(Vdp2Ram, addr);
     u16 tmp2 = T1ReadWord(Vdp2Ram, addr + 2);
-    info->charaddr = tmp2 & 0x7FFF;
+    info->charaddr = tmp2 &0x7FFF;
     info->flipfunction = (tmp1 & 0xC000) >> 14;
     switch (info->colornumber) {
     case 0:
@@ -2545,11 +2559,27 @@ static void Vdp2DrawMapPerLine(vdp2draw_struct *info, YglTexture *texture) {
   int res_shift = 0;
   if (vdp2height >= 440) res_shift = 1;
 
-  for (v = 0; v < info->drawh; v += info->lineinc) {  // ToDo: info->coordincy
+  int linemask = 0;
+  switch (info->lineinc) {
+  case 1:
+    linemask = 0;
+    break;
+  case 2:
+    linemask = 0x01;
+    break;
+  case 4:
+    linemask = 0x03;
+    break;
+  case 8:
+    linemask = 0x07;
+    break;
+  }
+
+  for (v = 0; v < info->drawh; v += 1) {  // ToDo: info->coordincy
     int targetv = 0;
     sx = info->x + info->lineinfo[(int)(lineindex*info->coordincy)].LineScrollValH;
     if (VDPLINE_SY(info->islinescroll)) {
-      targetv = info->y + info->lineinfo[(int)(lineindex*info->coordincy)].LineScrollValV;
+      targetv = info->y + (v & linemask) + info->lineinfo[(int)(lineindex*info->coordincy)].LineScrollValV;
     }
     else {
       targetv = info->y + v;
@@ -2563,13 +2593,16 @@ static void Vdp2DrawMapPerLine(vdp2draw_struct *info, YglTexture *texture) {
       targetv += T1ReadLong(Vdp2Ram, info->verticalscrolltbl) >> 16;
     }
 
-    info->coordincx = info->lineinfo[(int)(lineindex*info->coordincy)].CoordinateIncH / 255.0f;
-    if (info->coordincx == 0) {
-      info->coordincx = vdp2width;
+    if (VDPLINE_SZ(info->islinescroll)) {
+      info->coordincx = info->lineinfo[(int)(lineindex*info->coordincy)].CoordinateIncH / 256.0f;
+      if (info->coordincx == 0) {
+        info->coordincx = vdp2width;
+      }
+      else {
+        info->coordincx = 1.0f / info->coordincx;
+      }
     }
-    else {
-      info->coordincx = 1.0f / info->coordincx;
-    }
+
     if (info->coordincx < info->maxzoom) info->coordincx = info->maxzoom;
     info->draww = (int)((float)vdp2width / info->coordincx);
 
@@ -2610,11 +2643,9 @@ static void Vdp2DrawMapPerLine(vdp2draw_struct *info, YglTexture *texture) {
 
       info->PlaneAddr(info, info->mapwh * mapy + mapx, fixVdp2Regs);
       Vdp2PatternAddrPos(info, planex, pagex, planey, pagey);
-      Vdp2DrawPatternPos(info, texture, h, v, charx, chary);
-
+      Vdp2DrawPatternPos(info, texture, h, v, charx, chary, 1 );
     }
-
-    lineindex++;
+    if((v & linemask) == linemask) lineindex++;
   }
 
 }
@@ -2717,7 +2748,7 @@ static void Vdp2DrawMapTest(vdp2draw_struct *info, YglTexture *texture) {
 
       info->PlaneAddr(info, info->mapwh * mapy + mapx, fixVdp2Regs);
       Vdp2PatternAddrPos(info, planex, pagex, planey, pagey);
-      Vdp2DrawPatternPos(info, texture, h - charx, v - chary, 0, 0);
+      Vdp2DrawPatternPos(info, texture, h - charx, v - chary, 0, 0, info->lineinc);
 
     }
 
@@ -3149,6 +3180,7 @@ static void Vdp2DrawRotationSync() {
 		curret_rbg->info.cellh = curret_rbg->vres;
 		curret_rbg->info.flipfunction = 0;
 		YglQuadRbg0(&curret_rbg->info, NULL, &curret_rbg->c, &curret_rbg->cline, curret_rbg->rgb_type);
+    curret_rbg = NULL;
 		return;
 	}
 
@@ -3181,7 +3213,7 @@ static INLINE int vdp2rGetKValue(vdp2rotationparameter_struct * parameter, float
     if (parameter->k_mem_type == 0) { // vram
       kdata = T1ReadWord(Vdp2Ram, (parameter->coeftbladdr + (int)(h << 1)) & 0x7FFFF);
     } else { // cram
-      kdata = T2ReadWord((Vdp2ColorRam + 0x800), (parameter->coeftbladdr + (int)(h << 1)) & 0xFFF);
+      kdata = Vdp2ColorRamReadWord(((parameter->coeftbladdr + (int)(h << 1)) & 0x7FF) + 0x800);
     }
     if (kdata & 0x8000) { return 0; }
     kval = (float)(signed)((kdata & 0x7FFF) | (kdata & 0x4000 ? 0x8000 : 0x0000)) / 1024.0f;
@@ -3196,11 +3228,11 @@ static INLINE int vdp2rGetKValue(vdp2rotationparameter_struct * parameter, float
     if (parameter->k_mem_type == 0) { // vram
       kdata = T1ReadLong(Vdp2Ram, (parameter->coeftbladdr + (int)(h << 2)) & 0x7FFFF);
     } else { // cram
-      kdata = T2ReadLong((Vdp2ColorRam + 0x800), (parameter->coeftbladdr + (int)(h << 2)) & 0xFFF);
+      kdata = Vdp2ColorRamReadLong( ((parameter->coeftbladdr + (int)(h << 2)) & 0x7FF) + 0x800 );
     }
     parameter->lineaddr = (kdata >> 24) & 0x7F;
     if (kdata & 0x80000000) { return 0; }
-    kval = (float)(int)((kdata & 0x00FFFFFF) | (kdata & 0x00800000 ? 0xFF800000 : 0x00000000)) / 65536.0f;
+    kval = (float)(int)((kdata & 0x00FFFFFF) | (kdata & 0x00800000 ? 0xFF800000 : 0x00000000)) / (65536.0f);
     switch (parameter->coefmode) {
     case 0:  parameter->kx = kval; parameter->ky = kval; break;
     case 1:  parameter->kx = kval; break;
@@ -3236,7 +3268,13 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
     linecl = ((~fixVdp2Regs->CCRLB & 0x1F) << 3) + 0x7;
   }
 
-  if (vdp2height >= 448) lineInc <<= 1;
+  if (vdp2height >= 448) {
+    lineInc <<= 1;
+    info->hres_shift = 1;
+  }
+  else {
+    info->hres_shift = 0;
+  }
   vres = rbg->vres/ rbg->rotate_mval_v;
   hres = rbg->hres/ rbg->rotate_mval_h;
   cellw = rbg->info.cellw;
@@ -3399,9 +3437,11 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
         break;
       case 1:
         parameter = &paraB;
-        if (vdp2rGetKValue(parameter, i) == 0) {
-          *(texture->textdata++) = 0x00000000;
-          continue;
+        if (parameter->coefenab) {
+          if (vdp2rGetKValue(parameter, i) == 0) {
+            *(texture->textdata++) = 0x00000000;
+            continue;
+          }
         }
         break;
       case 2:
@@ -3440,7 +3480,7 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
         continue;
       }
 
-      float fh = (parameter->ky * (parameter->Xsp + parameter->dx * i) + parameter->Xp);
+      float fh = (parameter->kx * (parameter->Xsp + parameter->dx * i) + parameter->Xp);
       float fv = (parameter->ky * (parameter->Ysp + parameter->dy * i) + parameter->Yp);
       h = fh;
       v = fv;
@@ -5607,6 +5647,16 @@ static void Vdp2DrawNBG0(void)
   info.cellh = 256;
   info.specialcolorfunction = 0;
 
+  for (int i=0; i < 4; i++) {
+    info.char_bank[i] = 0;
+    info.pname_bank[i] = 0;
+    for (int j=0; j < 8; j++) {
+      if (AC_VRAM[i][j] == 0x04) 
+        info.char_bank[i] = 1;
+      if (AC_VRAM[i][j] == 0x00)
+        info.pname_bank[i] = 1;
+    }
+  }
 
   if (fixVdp2Regs->BGON & 0x20)
   {
@@ -5958,6 +6008,7 @@ static void Vdp2DrawNBG0(void)
   }
   else
   {
+    Vdp2DrawRotationSync();
     // RBG1 draw
     memcpy(&g_rgb1.info, &info, sizeof(info));
     Vdp2DrawRotation(&g_rgb1);
@@ -5981,6 +6032,18 @@ static void Vdp2DrawNBG1(void)
 
   info.enable = fixVdp2Regs->BGON & 0x2;
   if (!info.enable) return;
+
+  for (int i = 0; i < 4; i++) {
+    info.char_bank[i] = 0;
+    info.pname_bank[i] = 0;
+    for (int j = 0; j < 8; j++) {
+      if (AC_VRAM[i][j] == 0x05)
+        info.char_bank[i] = 1;
+      if (AC_VRAM[i][j] == 0x01)
+        info.pname_bank[i] = 1;
+    }
+  }
+
   info.transparencyenable = !(fixVdp2Regs->BGON & 0x200);
   info.specialprimode = (fixVdp2Regs->SFPRMD >> 2) & 0x3;
 
@@ -6246,6 +6309,18 @@ static void Vdp2DrawNBG2(void)
 
   info.enable = fixVdp2Regs->BGON & 0x4;
   if (!info.enable) return;
+
+  for (int i = 0; i < 4; i++) {
+    info.char_bank[i] = 0;
+    info.pname_bank[i] = 0;
+    for (int j = 0; j < 8; j++) {
+      if (AC_VRAM[i][j] == 0x06)
+        info.char_bank[i] = 1;
+      if (AC_VRAM[i][j] == 0x02)
+        info.pname_bank[i] = 1;
+    }
+  }
+  
   info.transparencyenable = !(fixVdp2Regs->BGON & 0x400);
   info.specialprimode = (fixVdp2Regs->SFPRMD >> 4) & 0x3;
 
@@ -6358,6 +6433,18 @@ static void Vdp2DrawNBG3(void)
 
   info.enable = fixVdp2Regs->BGON & 0x8;
   if (!info.enable) return;
+
+  for (int i = 0; i < 4; i++) {
+    info.char_bank[i] = 0;
+    info.pname_bank[i] = 0;
+    for (int j = 0; j < 8; j++) {
+      if (AC_VRAM[i][j] == 0x07)
+        info.char_bank[i] = 1;
+      if (AC_VRAM[i][j] == 0x03)
+        info.pname_bank[i] = 1;
+    }
+  }
+
   info.transparencyenable = !(fixVdp2Regs->BGON & 0x800);
   info.specialprimode = (fixVdp2Regs->SFPRMD >> 6) & 0x3;
 
@@ -6476,6 +6563,13 @@ static void Vdp2DrawRBG0(void)
       Vdp2ReadRotationTable(0, &paraA, fixVdp2Regs, Vdp2Ram);
     }
     return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    g_rgb0.info.char_bank[i]  = 1;
+    g_rgb0.info.pname_bank[i] = 1;
+    g_rgb1.info.char_bank[i]  = 1;
+    g_rgb1.info.pname_bank[i] = 1;
   }
 
   Vdp2GeneratePerLineColorCalcuration(info, RBG0);
@@ -6818,6 +6912,68 @@ void VIDOGLVdp2DrawScreens(void)
   memcpy(&baseVdp2Regs, fixVdp2Regs, sizeof(Vdp2));
   fixVdp2Regs = &baseVdp2Regs;
 
+  
+  AC_VRAM[0][0] = (fixVdp2Regs->CYCA0L >> 12) & 0x0F;
+  AC_VRAM[0][1] = (fixVdp2Regs->CYCA0L >> 8) & 0x0F;
+  AC_VRAM[0][2] = (fixVdp2Regs->CYCA0L >> 4) & 0x0F;
+  AC_VRAM[0][3] = (fixVdp2Regs->CYCA0L >> 0) & 0x0F;
+  AC_VRAM[0][4] = (fixVdp2Regs->CYCA0U >> 12) & 0x0F;
+  AC_VRAM[0][5] = (fixVdp2Regs->CYCA0U >> 8) & 0x0F;
+  AC_VRAM[0][6] = (fixVdp2Regs->CYCA0U >> 4) & 0x0F;
+  AC_VRAM[0][7] = (fixVdp2Regs->CYCA0U >> 0) & 0x0F;
+
+  if (fixVdp2Regs->RAMCTL & 0x100) {
+    AC_VRAM[1][0] = (fixVdp2Regs->CYCA1L >> 12) & 0x0F;
+    AC_VRAM[1][1] = (fixVdp2Regs->CYCA1L >> 8) & 0x0F;
+    AC_VRAM[1][2] = (fixVdp2Regs->CYCA1L >> 4) & 0x0F;
+    AC_VRAM[1][3] = (fixVdp2Regs->CYCA1L >> 0) & 0x0F;
+    AC_VRAM[1][4] = (fixVdp2Regs->CYCA1U >> 12) & 0x0F;
+    AC_VRAM[1][5] = (fixVdp2Regs->CYCA1U >> 8) & 0x0F;
+    AC_VRAM[1][6] = (fixVdp2Regs->CYCA1U >> 4) & 0x0F;
+    AC_VRAM[1][7] = (fixVdp2Regs->CYCA1U >> 0) & 0x0F;
+  }
+  else {
+    AC_VRAM[1][0] = AC_VRAM[0][0];
+    AC_VRAM[1][1] = AC_VRAM[0][1];
+    AC_VRAM[1][2] = AC_VRAM[0][2];
+    AC_VRAM[1][3] = AC_VRAM[0][3];
+    AC_VRAM[1][4] = AC_VRAM[0][4];
+    AC_VRAM[1][5] = AC_VRAM[0][5];
+    AC_VRAM[1][6] = AC_VRAM[0][6];
+    AC_VRAM[1][7] = AC_VRAM[0][7];
+  }
+
+  AC_VRAM[2][0] = (fixVdp2Regs->CYCB0L >> 12) & 0x0F;
+  AC_VRAM[2][1] = (fixVdp2Regs->CYCB0L >> 8) & 0x0F;
+  AC_VRAM[2][2] = (fixVdp2Regs->CYCB0L >> 4) & 0x0F;
+  AC_VRAM[2][3] = (fixVdp2Regs->CYCB0L >> 0) & 0x0F;
+  AC_VRAM[2][4] = (fixVdp2Regs->CYCB0U >> 12) & 0x0F;
+  AC_VRAM[2][5] = (fixVdp2Regs->CYCB0U >> 8) & 0x0F;
+  AC_VRAM[2][6] = (fixVdp2Regs->CYCB0U >> 4) & 0x0F;
+  AC_VRAM[2][7] = (fixVdp2Regs->CYCB0U >> 0) & 0x0F;
+
+  if (fixVdp2Regs->RAMCTL & 0x200) {
+    AC_VRAM[3][0] = (fixVdp2Regs->CYCB1L >> 12) & 0x0F;
+    AC_VRAM[3][1] = (fixVdp2Regs->CYCB1L >> 8) & 0x0F;
+    AC_VRAM[3][2] = (fixVdp2Regs->CYCB1L >> 4) & 0x0F;
+    AC_VRAM[3][3] = (fixVdp2Regs->CYCB1L >> 0) & 0x0F;
+    AC_VRAM[3][4] = (fixVdp2Regs->CYCB1U >> 12) & 0x0F;
+    AC_VRAM[3][5] = (fixVdp2Regs->CYCB1U >> 8) & 0x0F;
+    AC_VRAM[3][6] = (fixVdp2Regs->CYCB1U >> 4) & 0x0F;
+    AC_VRAM[3][7] = (fixVdp2Regs->CYCB1U >> 0) & 0x0F;
+  }
+  else {
+    AC_VRAM[3][0] = AC_VRAM[2][0];
+    AC_VRAM[3][1] = AC_VRAM[2][1];
+    AC_VRAM[3][2] = AC_VRAM[2][2];
+    AC_VRAM[3][3] = AC_VRAM[2][3];
+    AC_VRAM[3][4] = AC_VRAM[2][4];
+    AC_VRAM[3][5] = AC_VRAM[2][5];
+    AC_VRAM[3][6] = AC_VRAM[2][6];
+    AC_VRAM[3][7] = AC_VRAM[2][7];
+  }
+
+
   YglUpdateColorRam();
 
   Vdp2GenerateWindowInfo();
@@ -7089,6 +7245,7 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03NoK(vdp2draw_struct *
     return (&paraA);
   }
 
+  v <= info->hres_shift;
   if (info->WindwAreaMode == WA_INSIDE)  // Inside is B, Outside is A
   {
     // Outside is A
@@ -7141,6 +7298,7 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithKA(vdp2draw_struc
     return info->GetKValueA(&paraA, h);
   }
 
+  v <<= info->hres_shift;
   if (info->WindwAreaMode == WA_INSIDE)  // Inside is B, Outside is A
   {
     // Outside A
@@ -7195,6 +7353,7 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithKB(vdp2draw_struc
     return &paraA;
   }
 
+  v <<= info->hres_shift;
   if (info->WindwAreaMode == WA_INSIDE)  // Inside is B, Outside is A
   {
     // Outside A
@@ -7254,6 +7413,8 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithK(vdp2draw_struct
     h = ceilf(paraB.KtablV + (paraB.deltaKAx * h));
     return info->GetKValueB(&paraB, h);
   }
+
+  v <<= info->hres_shift;
 
   // Final Fight Revenge
   if (info->WindwAreaMode == WA_INSIDE) {

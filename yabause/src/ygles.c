@@ -41,6 +41,7 @@ static int YglIsNeedFrameBuffer();
 static int YglCalcTextureQ( float   *pnts,float *q);
 static void YglRenderDestinationAlpha(void);;
 u32 * YglGetColorRamPointer();
+void YglRenderFrameBufferShadow();
 
 void Ygl_uniformVDP2DrawFramebuffer_perline(void * p, float from, float to, u32 linetexture);
 
@@ -500,6 +501,7 @@ YglTextureManager * YglTMInit(unsigned int w, unsigned int h) {
   glBufferData(GL_PIXEL_UNPACK_BUFFER, tm->width * tm->height * 4, NULL, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
+  glGetError();
   glGenTextures(1, &tm->textureID);
   glBindTexture(GL_TEXTURE_2D, tm->textureID);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tm->width, tm->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -531,8 +533,15 @@ YglTextureManager * YglTMInit(unsigned int w, unsigned int h) {
 //////////////////////////////////////////////////////////////////////////////
 
 void YglTMDeInit(YglTextureManager * tm) {
+  glBindTexture(GL_TEXTURE_2D, tm->textureID);
+  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+  glBindTexture(GL_TEXTURE_2D, 0);
+  glFinish();
+
   glDeleteTextures(1, &tm->textureID);
+  tm->textureID = 0;
   glDeleteBuffers(1, &tm->pixelBufferID);
+  tm->pixelBufferID = 0;
   free(tm);
 }
 
@@ -790,7 +799,7 @@ void VIDOGLVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val ) {
   }
 
   if( _Ygl->cpu_framebuffer_write[_Ygl->drawframe] == 0 ){
-     FRAMELOG("FB: CPU write framebuffer %d:1\n",_Ygl->drawframe );
+     FRAMELOG("VIDOGLVdp1WriteFrameBuffer: CPU write framebuffer %d:1\n",_Ygl->drawframe );
   }
   _Ygl->cpu_framebuffer_write[_Ygl->drawframe]++;
 
@@ -881,7 +890,10 @@ void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
       glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
       glGetError();
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _Ygl->rwidth, _Ygl->rheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      char * buf = malloc(_Ygl->rwidth * _Ygl->rheight * 4);
+      memset(buf, 0, _Ygl->rwidth * _Ygl->rheight * 4);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _Ygl->rwidth, _Ygl->rheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+      free(buf);
       if ((error = glGetError()) != GL_NO_ERROR) {
         YGLDEBUG("Fail on VIDOGLVdp1ReadFrameBuffer at %d %04X %d %d", __LINE__, error, _Ygl->rwidth, _Ygl->rheight);
         abort();
@@ -2729,7 +2741,7 @@ void YglFrameChangeVDP1(){
   current_drawframe = _Ygl->drawframe;
   _Ygl->drawframe = _Ygl->readframe;
   _Ygl->readframe = current_drawframe;
-  FRAMELOG("FB: YglFrameChangeVDP1: swap drawframe =%d readframe = %d\n", _Ygl->drawframe, _Ygl->readframe);
+  FRAMELOG("YglFrameChangeVDP1: swap drawframe =%d readframe = %d\n", _Ygl->drawframe, _Ygl->readframe);
 }
 
 void YglDrawCpuFramebufferWrite( int target ){
@@ -2737,7 +2749,7 @@ void YglDrawCpuFramebufferWrite( int target ){
 
   u32 drawFboId;
   glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFboId);
-  FRAMELOG("FB: write YglDrawCpuFrameBufferWrite %d:%d\n",target,_Ygl->cpu_framebuffer_write[target]) ; 
+  FRAMELOG("YglDrawCpuFramebufferWrite: write %d:%d w:%d h:%d\n",target,_Ygl->cpu_framebuffer_write[target], _Ygl->max_fb_x, _Ygl->max_fb_y ) ;
   glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->vdp1fbo);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _Ygl->vdp1FrameBuff[target], 0);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, _Ygl->rboid_depth);
@@ -2761,9 +2773,9 @@ void YglDrawCpuFramebufferWrite( int target ){
   }
 
   if( _Ygl->smallfbotex != 0 ) {
-    const u32 width = _Ygl->max_fb_x;
-    const u32 height = _Ygl->max_fb_y; 
-    u32 * texbuf = malloc( (width+1) * (height+1) * 4 );
+    const u32 width = _Ygl->max_fb_x+1;
+    const u32 height = _Ygl->max_fb_y+1; 
+    u32 * texbuf = malloc( width * height * 4 );
     int tvmode = (Vdp1Regs->TVMR & 0x7);
     switch( tvmode ) {
       case 0: // 16bit 512x256
@@ -2818,7 +2830,7 @@ void YglDrawCpuFramebufferWrite( int target ){
     glBindTexture(GL_TEXTURE_2D, _Ygl->smallfbotex);
     glTexSubImage2D(GL_TEXTURE_2D,0,0,0,width,height,GL_RGBA, GL_UNSIGNED_BYTE,texbuf);
     glViewport(0,0,_Ygl->width,_Ygl->height);
-    YglBlitFramebuffer(_Ygl->smallfbotex,_Ygl->vdp1fbo,1,1);
+    YglWindowFramebuffer(_Ygl->smallfbotex,_Ygl->vdp1fbo, width, height, _Ygl->rwidth, _Ygl->rheight);
     free(texbuf);
   }
   _Ygl->min_fb_x = 1024;
@@ -2848,7 +2860,7 @@ void YglRenderVDP1(void) {
     YglOrtho(&m, 0.0f, (float)_Ygl->rwidth, (float)_Ygl->rheight, 0.0f, 10.0f, 0.0f);
   }
 
-  FRAMELOG("FB: YglRenderVDP1: drawframe =%d:%d", _Ygl->drawframe, _Ygl->cpu_framebuffer_write[_Ygl->drawframe]);
+  FRAMELOG("YglRenderVDP1: drawframe =%d:%d", _Ygl->drawframe, _Ygl->cpu_framebuffer_write[_Ygl->drawframe]);
 
   if (_Ygl->pFrameBuffer != NULL) {
     _Ygl->pFrameBuffer = NULL;
@@ -2959,12 +2971,13 @@ void YglNeedToUpdateWindow()
 
 void YglSetVdp2Window()
 {
-    int bwin0,bwin1;
+    int bwin0,bwin1,bspwin;
    //if( _Ygl->bUpdateWindow && (_Ygl->win0_vertexcnt != 0 || _Ygl->win1_vertexcnt != 0 ) )
 
     bwin0 = (Vdp2Regs->WCTLC >> 9) &0x01;
     bwin1 = (Vdp2Regs->WCTLC >> 11) &0x01;
-   if( (_Ygl->win0_vertexcnt != 0 || _Ygl->win1_vertexcnt != 0 )  )
+    bspwin = ((Vdp2Regs->WCTLC >> 13) & 0x01); // ((Vdp2Regs->SPCTL >> 4) & 0x03) == 0x01;
+   if( (_Ygl->win0_vertexcnt != 0 || _Ygl->win1_vertexcnt != 0 || bspwin) )
    {
 
      Ygl_uniformWindow(&_Ygl->windowpg);
@@ -2995,6 +3008,13 @@ void YglSetVdp2Window()
           glStencilFunc(GL_ALWAYS,0x02,0x02);
           glVertexAttribPointer(_Ygl->windowpg.vertexp,2,GL_INT, GL_FALSE,0,(GLvoid *)_Ygl->win1v );
           glDrawArrays(GL_TRIANGLE_STRIP,0,_Ygl->win1_vertexcnt);
+      }
+
+      // 8. sprite window
+      if (bspwin) {
+        glStencilMask(0x04);
+        glStencilFunc(GL_ALWAYS, 0x04, 0x04);
+        YglRenderFrameBufferShadow();
       }
 
       glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
@@ -3155,12 +3175,12 @@ void YglRenderFrameBuffer(int from, int to) {
   GLint   vertices[12];
   GLfloat texcord[12];
   float offsetcol[4];
-  int bwin0, bwin1, logwin0, logwin1, winmode;
+  int bwin0, bwin1, logwin0, logwin1, bwinsp, logwinsp, winmode;
   int is_addcolor = 0;
   int cwidth = 0;
   int cheight = 0;
 
-  if(_Ygl->cpu_framebuffer_write[_Ygl->readframe]!=0) FRAMELOG("FB: CPU write to readframe FB %d:%d %d to %d\n", _Ygl->readframe, _Ygl->cpu_framebuffer_write[_Ygl->readframe] , from, to, _Ygl->readframe);
+  if(_Ygl->cpu_framebuffer_write[_Ygl->readframe]!=0) FRAMELOG("YglRenderFrameBuffer: CPU write to readframe FB %d:%d %d to %d\n", _Ygl->readframe, _Ygl->cpu_framebuffer_write[_Ygl->readframe] , from, to, _Ygl->readframe);
 
   YglGenFrameBuffer();
   YglDrawCpuFramebufferWrite(_Ygl->readframe);
@@ -3233,15 +3253,19 @@ void YglRenderFrameBuffer(int from, int to) {
    // Window Mode
    bwin0 = (Vdp2Regs->WCTLC >> 9) &0x01;
    logwin0 = (Vdp2Regs->WCTLC >> 8) & 0x01;
-   bwin1 = (Vdp2Regs->WCTLC >> 11) &0x01;
-   logwin1 = (Vdp2Regs->WCTLC >> 10) & 0x01;
-   winmode    = (Vdp2Regs->WCTLC >> 15 ) & 0x01;
+   bwin1 = ((Vdp2Regs->WCTLC >> 11) &0x01) << 1;
+   logwin1 = ((Vdp2Regs->WCTLC >> 10) & 0x01) << 1;
+   bwinsp = ((Vdp2Regs->WCTLC >> 13) & 0x01) << 2;
+   logwinsp = (((Vdp2Regs->WCTLC >> 12) & 0x01)?0:1) << 2; // Invarse?
+      
+   winmode = (Vdp2Regs->WCTLC >> 15) & 0x01;
 
    int bwin_cc0 = (Vdp2Regs->WCTLD >> 9) & 0x01;
    int logwin_cc0 = (Vdp2Regs->WCTLD >> 8) & 0x01;
    int bwin_cc1 = (Vdp2Regs->WCTLD >> 11) & 0x01;
    int logwin_cc1 = (Vdp2Regs->WCTLD >> 10) & 0x01;
    int winmode_cc = (Vdp2Regs->WCTLD >> 15) & 0x01;
+   
 
    if (bwin_cc0 || bwin_cc1){
 
@@ -3310,61 +3334,25 @@ void YglRenderFrameBuffer(int from, int to) {
 
      glDisable(GL_STENCIL_TEST);
      glStencilFunc(GL_ALWAYS, 0, 0xFF);
-     if (bwin0 || bwin1)
+     if (bwin0 || bwin1 || bwinsp)
      {
        glEnable(GL_STENCIL_TEST);
        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-       if (bwin0 && !bwin1)
-       {
-         if (logwin0)
-         {
-           glStencilFunc(GL_EQUAL, 0x01, 0x01);
-         }
-         else{
-           glStencilFunc(GL_NOTEQUAL, 0x01, 0x01);
-         }
+       int winmask = (bwin0 | bwin1 | bwinsp);
+       int winflag = 0;
+       if (winmode == 0) { // and
+         if (bwin0)  winflag = logwin0;
+         if (bwin1)  winflag |= logwin1;
+         if (bwinsp) winflag |= logwinsp;
+         glStencilFunc(GL_EQUAL, winflag, winmask);
        }
-       else if (!bwin0 && bwin1) {
-
-         if (logwin1)
-         {
-           glStencilFunc(GL_EQUAL, 0x02, 0x02);
-         }
-         else{
-           glStencilFunc(GL_NOTEQUAL, 0x02, 0x02);
-         }
-       }
-       else if (bwin0 && bwin1) {
-
-
-         // and
-         if (winmode == 0x0)
-         {
-           if (logwin0 == 1 && logwin1 == 1){
-             glStencilFunc(GL_EQUAL, 0x03, 0x03);
-           }
-           else if (logwin0 == 0 && logwin1 == 0){
-             glStencilFunc(GL_GREATER, 0x01, 0x03);
-           }
-           else{
-             glStencilFunc(GL_ALWAYS, 0, 0xFF);
-           }
-
-         }
-         // OR
-         else if (winmode == 0x01)
-         {
-           if (logwin0 == 1 && logwin1 == 1){
-             glStencilFunc(GL_LEQUAL, 0x01, 0x03);
-           }
-           else if (logwin0 == 0 && logwin1 == 0){
-             glStencilFunc(GL_NOTEQUAL, 0x03, 0x03);
-           }
-           else{
-             glStencilFunc(GL_ALWAYS, 0, 0xFF);
-           }
-         }
+       else { // or
+         winflag = winmask;
+         if (bwin0)  winflag &= ~logwin0;
+         if (bwin1)  winflag &= ~logwin1;
+         if (bwinsp) winflag &= ~logwinsp;
+         glStencilFunc(GL_NOTEQUAL, winflag, winmask);
        }
      }
 
@@ -3373,7 +3361,7 @@ void YglRenderFrameBuffer(int from, int to) {
 
      glDepthFunc(GL_GEQUAL);
      glEnable(GL_BLEND);
-     if (bwin0 || bwin1)
+     if (bwin0 || bwin1 || bwinsp)
      {
        glDisable(GL_STENCIL_TEST);
        glStencilFunc(GL_ALWAYS, 0, 0xFF);
@@ -3382,58 +3370,26 @@ void YglRenderFrameBuffer(int from, int to) {
    }
 
 
-   if( bwin0 || bwin1 )
+   if (bwin0 || bwin1 || bwinsp)
    {
       glEnable(GL_STENCIL_TEST);
       glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
 
-      if( bwin0 && !bwin1 )
-      {
-         if( logwin0 )
-         {
-            glStencilFunc(GL_EQUAL,0x01,0x01);
-         }else{
-            glStencilFunc(GL_NOTEQUAL,0x01,0x01);
-         }
-      }else if( !bwin0 && bwin1 ) {
-
-         if( logwin1 )
-         {
-            glStencilFunc(GL_EQUAL,0x02,0x02);
-         }else{
-            glStencilFunc(GL_NOTEQUAL,0x02,0x02);
-         }
-      }else if( bwin0 && bwin1 ) {
-
-
-      // and
-      if (winmode == 0x0)
-      {
-        if (logwin0 == 1 && logwin1 == 1){
-          glStencilFunc(GL_EQUAL, 0x03, 0x03);
-        }
-        else if (logwin0 == 0 && logwin1 == 0){
-          glStencilFunc(GL_GREATER, 0x01, 0x03);
-        }
-        else{
-          glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        }
-
+      int winmask = (bwin0 | bwin1 | bwinsp);
+      int winflag = 0;
+      if (winmode == 0) { // and
+        if (bwin0)  winflag = logwin0;
+        if (bwin1)  winflag |= logwin1;
+        if (bwinsp) winflag |= logwinsp;
+        glStencilFunc(GL_EQUAL, winflag, winmask);
       }
-      // OR
-      else if (winmode == 0x01)
-      {
-        if (logwin0 == 1 && logwin1 == 1){
-          glStencilFunc(GL_LEQUAL, 0x01, 0x03);
-        }
-        else if (logwin0 == 0 && logwin1 == 0){
-          glStencilFunc(GL_NOTEQUAL, 0x03, 0x03);
-        }
-        else{
-          glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        }
+      else { // or
+        winflag = winmask;
+        if (bwin0)  winflag &= ~logwin0;
+        if (bwin1)  winflag &= ~logwin1;
+        if (bwinsp) winflag &= ~logwinsp;
+        glStencilFunc(GL_NOTEQUAL, winflag, winmask);
       }
-     }
    }
 
    glUniformMatrix4fv(_Ygl->renderfb.mtxModelView, 1, GL_FALSE, (GLfloat*)result.m);
@@ -3451,7 +3407,7 @@ void YglRenderFrameBuffer(int from, int to) {
    }
 #endif
 
-   if( bwin0 || bwin1 )
+   if( bwin0 || bwin1 || bwinsp)
    {
       glDisable(GL_STENCIL_TEST);
       glStencilFunc(GL_ALWAYS,0,0xFF);
@@ -3565,7 +3521,14 @@ void YglRender(void) {
      glViewport(0, 0, _Ygl->width, _Ygl->height);
    }
    else{
-     glViewport(_Ygl->originx, _Ygl->originy, _Ygl->width, _Ygl->height);
+     float hrate = (float)_Ygl->rheight / (float)_Ygl->rwidth;
+     if (  (int)(((float)_Ygl->height / (float)_Ygl->width)*100.0f)  == 56 ) {
+       hrate = hrate * 0.5625 / 0.75;
+       glViewport(_Ygl->originx, _Ygl->originy + (_Ygl->height - _Ygl->width * hrate) / 2.0f, _Ygl->width, _Ygl->width * hrate);
+     }
+     else {
+       glViewport(_Ygl->originx, _Ygl->originy + (_Ygl->height - _Ygl->width * hrate) / 2.0f, _Ygl->width, _Ygl->width * hrate);
+     }
    }
 
    if (_Ygl->aamode == AA_FXAA){
@@ -3707,23 +3670,50 @@ void YglRender(void) {
   }
 
    if ((fixVdp2Regs->SDCTL & 0xFF) != 0 || _Ygl->msb_shadow_count_[_Ygl->readframe] != 0 ) {
-     YglRenderFrameBufferShadow();
+     //YglRenderFrameBufferShadow();
    }
 
 
   if (_Ygl->aamode == AA_FXAA){
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->default_fbo);
     glViewport(_Ygl->originx, _Ygl->originy, GlWidth, GlHeight);
+
+    float hrate = (float)_Ygl->rheight / (float)_Ygl->rwidth;
+    if ((int)(((float)GlHeight / (float)GlWidth)*100.0f) == 56) {
+      hrate = hrate * 0.5625 / 0.75;
+      glViewport(_Ygl->originx, _Ygl->originy + (GlHeight - GlWidth * hrate) / 2.0f, GlWidth, GlWidth * hrate);
+    }
+    else {
+      glViewport(_Ygl->originx, _Ygl->originy + (GlHeight - GlWidth * hrate) / 2.0f, GlWidth, GlWidth * hrate);
+
+    }
     _Ygl->targetfbo = 0;
-    YglBlitFXAA(_Ygl->fxaa_fbotex, GlWidth, GlHeight);
+    YglBlitFXAA(_Ygl->fxaa_fbotex, GlWidth, GlWidth * hrate);
   }
   else if (_Ygl->aamode == AA_SCANLINE_FILTER && _Ygl->rheight <= 256 ){
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->default_fbo);
-    glViewport(_Ygl->originx, _Ygl->originy, GlWidth, GlHeight);
+    float hrate = (float)_Ygl->rheight / (float)_Ygl->rwidth;
+    if ((int)(((float)GlHeight / (float)GlWidth)*100.0f) == 56) {
+      hrate = hrate * 0.5625 / 0.75;
+      glViewport(_Ygl->originx, _Ygl->originy + (GlHeight - GlWidth * hrate) / 2.0f, GlWidth, GlWidth * hrate);
+    }
+    else {
+      glViewport(_Ygl->originx, _Ygl->originy + (GlHeight - GlWidth * hrate) / 2.0f, GlWidth, GlWidth * hrate);
+
+    }
+
     YglBlitScanlineFilter(_Ygl->fxaa_fbotex, GlHeight, _Ygl->rheight);
   }
   else if (_Ygl->resolution_mode != RES_NATIVE ) {
-    glViewport(_Ygl->originx, _Ygl->originy, GlWidth, GlHeight);
+    float hrate = (float)_Ygl->rheight / (float)_Ygl->rwidth;
+    if ((int)(((float)GlHeight / (float)GlWidth)*100.0f) == 56) {
+      hrate = hrate * 0.5625 / 0.75;
+      glViewport(_Ygl->originx, _Ygl->originy + (GlHeight - GlWidth * hrate) / 2.0f, GlWidth, GlWidth * hrate);
+    }
+    else {
+      glViewport(_Ygl->originx, _Ygl->originy + (GlHeight - GlWidth * hrate) / 2.0f, GlWidth, GlWidth * hrate);
+
+    }
     YglBlitFramebuffer(_Ygl->fxaa_fbotex, _Ygl->default_fbo, GlWidth, GlHeight);
   }
   else{
@@ -3770,7 +3760,8 @@ int YglSetupWindow(YglProgram * prg){
   // no window = 0
   // win0      = 1
   // win1      = 2
-  // both		 = 3
+  // SP        = 4
+  // both		   = 3
 
   if (prg->bwin0 == 0 && prg->bwin1 == 0) {
     // Color Clcuaraion Window
@@ -3829,57 +3820,29 @@ int YglSetupWindow(YglProgram * prg){
   }
 
   // Transparent Window
-  if (prg->bwin0 && !prg->bwin1)
+  if (prg->bwin0 || prg->bwin1 || prg->bwinsp)
   {
-    if (prg->logwin0)
-    {
-      glStencilFunc(GL_EQUAL, 0x01, 0x01);
+    prg->bwin1 <<= 1;
+    prg->logwin1 <<= 1;
+    prg->bwinsp <<= 2;
+    prg->logwinsp <<= 2;
+
+    int winmask = (prg->bwin0 | prg->bwin1 | prg->bwinsp);
+    int winflag = 0;
+    if (prg->winmode == 0) { // and
+      if (prg->bwin0)  winflag = prg->logwin0;
+      if (prg->bwin1)  winflag |= prg->logwin1;
+      if (prg->bwinsp) winflag |= prg->logwinsp;
+      glStencilFunc(GL_EQUAL, winflag, winmask);
     }
-    else{
-      glStencilFunc(GL_NOTEQUAL, 0x01, 0x01);
+    else { // or
+      winflag = winmask;
+      if (prg->bwin0)  winflag &= ~prg->logwin0;
+      if (prg->bwin1)  winflag &= ~prg->logwin1;
+      if (prg->bwinsp) winflag &= ~prg->logwinsp;
+      glStencilFunc(GL_NOTEQUAL, winflag, winmask);
     }
   }
-  else if (!prg->bwin0 && prg->bwin1) {
-
-    if (prg->logwin1)
-    {
-      glStencilFunc(GL_EQUAL, 0x02, 0x02);
-    }
-    else{
-      glStencilFunc(GL_NOTEQUAL, 0x02, 0x02);
-    }
-  }
-  else if (prg->bwin0 && prg->bwin1) {
-    // and
-    if (prg->winmode == 0x0)
-    {
-      if (prg->logwin0 == 1 && prg->logwin1 == 1){
-        glStencilFunc(GL_EQUAL, 0x03, 0x03);
-      }
-      else if (prg->logwin0 == 0 && prg->logwin1 == 0){
-        glStencilFunc(GL_GREATER, 0x01, 0x03);
-      }
-      else{
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-      }
-      
-    }
-    // OR
-    else if (prg->winmode == 0x01)
-    {
-      if (prg->logwin0 == 1 && prg->logwin1 == 1){
-        glStencilFunc(GL_LEQUAL, 0x01, 0x03);
-      }
-      else if (prg->logwin0 == 0 && prg->logwin1 == 0){
-        glStencilFunc(GL_NOTEQUAL, 0x03, 0x03);
-      }
-      else{
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-      }
-    }
-  }
-
-
   return 0;
 }
 
@@ -4529,3 +4492,6 @@ void YglSetPerlineBuf(YglPerLineInfo * perline, u32 * pbuf, int linecount, int d
   glBindTexture(GL_TEXTURE_2D, 0);
   return;
 }
+
+
+

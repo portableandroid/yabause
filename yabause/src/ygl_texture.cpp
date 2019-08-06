@@ -127,6 +127,7 @@ const char prg_generate_rbg[] =
 "  int window_area_mode;"
 "  float alpha_;"
 "  int cram_shift;"
+"  int hires_shift;"
 "};\n"
 " struct vdp2WindowInfo\n"
 "{\n"
@@ -148,7 +149,7 @@ const char prg_generate_rbg[] =
 "      if( (addr & 0x02u) != 0u ) { kdata >>= 16; } \n"
 "      kdata = (((kdata) >> 8 & 0xFFu) | ((kdata) & 0xFFu) << 8);\n"
 "    }else{\n"
-"      kdata = cram[ ((0x800u + (addr&0xFFFu))>>2)  ]; \n"
+"      kdata = cram[ ((0x800u + (addr&0x7FFu))>>2)  ]; \n"
 "      if( (addr & 0x02u) != 0u ) { kdata >>= 16; } \n"
 "    }\n"
 "    if ( (kdata & 0x8000u) != 0u) { return -1; }\n"
@@ -159,7 +160,7 @@ const char prg_generate_rbg[] =
 "	     kdata = vram[ addr>>2 ]; \n"
 "      kdata = ((kdata&0xFF000000u) >> 24 | ((kdata) >> 8 & 0xFF00u) | ((kdata) & 0xFF00u) << 8 | (kdata&0x000000FFu) << 24);\n"
 "    }else{\n"
-"      kdata = cram[ ((0x800u + (addr&0xFFFu) )>>2) ]; \n"
+"      kdata = cram[ ((0x800u + (addr&0x7FFu) )>>2) ]; \n"
 "      kdata = ((kdata&0xFFFF0000u)>>16|(kdata&0x0000FFFFu)<<16);\n"
 "    }\n"
 "	 if( para[paramid].linecoefenab != 0) lineaddr = (kdata >> 24) & 0x7Fu; else lineaddr = 0u;\n"
@@ -170,6 +171,7 @@ const char prg_generate_rbg[] =
 " }\n"
 
 " bool isWindowInside(int posx, int posy) {\n"
+" posy <<= hires_shift;"
 "	if (window_area_mode == 0) {\n"
 "		if (pWinInfo[posy].WinShowLine == 0) {\n"
 "			return true;\n"
@@ -261,7 +263,7 @@ const char prg_rbg_rpmd2_2w[] =
 
 
 const char prg_get_param_mode03[] =
-"  if( isWindowInside( int(posx), int(posy) ) ) { "
+"  if( isWindowInside( int(posx), int(posy)) ) { "
 "    paramid = 0; \n"
 "    if( para[paramid].coefenab != 0 ){ \n"
 "      if( GetKValue(paramid,posx,posy,ky,lineaddr ) == -1 ) { \n"
@@ -656,7 +658,7 @@ const GLchar * a_prg_rbg_1_2w_bitmap[] = {
 
 const GLchar * a_prg_rbg_1_2w_p1_4bpp[] = {
 	prg_generate_rbg,
-	prg_rbg_rpmd0_2w,
+	prg_rbg_rpmd1_2w,
 	prg_rbg_xy,
 	prg_rbg_overmode_repeat,
 	prg_rbg_get_patternaddr,
@@ -667,7 +669,7 @@ const GLchar * a_prg_rbg_1_2w_p1_4bpp[] = {
 
 const GLchar * a_prg_rbg_1_2w_p2_4bpp[] = {
 	prg_generate_rbg,
-	prg_rbg_rpmd0_2w,
+	prg_rbg_rpmd1_2w,
 	prg_rbg_xy,
 	prg_rbg_overmode_repeat,
 	prg_rbg_get_patternaddr,
@@ -678,7 +680,7 @@ const GLchar * a_prg_rbg_1_2w_p2_4bpp[] = {
 
 const GLchar * a_prg_rbg_1_2w_p1_8bpp[] = {
 	prg_generate_rbg,
-	prg_rbg_rpmd0_2w,
+	prg_rbg_rpmd1_2w,
 	prg_rbg_xy,
 	prg_rbg_overmode_repeat,
 	prg_rbg_get_patternaddr,
@@ -689,7 +691,7 @@ const GLchar * a_prg_rbg_1_2w_p1_8bpp[] = {
 
 const GLchar * a_prg_rbg_1_2w_p2_8bpp[] = {
 	prg_generate_rbg,
-	prg_rbg_rpmd0_2w,
+	prg_rbg_rpmd1_2w,
 	prg_rbg_xy,
 	prg_rbg_overmode_repeat,
 	prg_rbg_get_patternaddr,
@@ -828,6 +830,7 @@ struct RBGUniform {
 	window_area_mode = 0;
 	alpha_ = 0.0;
 	cram_shift = 1;
+  hires_shift = 0;
   }
   float hres_scale;
   float vres_scale;
@@ -851,6 +854,7 @@ struct RBGUniform {
   int window_area_mode;
   float alpha_;
   int cram_shift;
+  int hires_shift;
 };
 
 class RBGGenerator{
@@ -1646,7 +1650,7 @@ public:
 				}
 			}
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_window_);
-			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(vdp2WindowInfo)*int(rbg->vres / rbg->rotate_mval_v), (void*)rbg->info.pWinInfo);
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(vdp2WindowInfo)*(int(rbg->vres / rbg->rotate_mval_v)<<rbg->info.hres_shift) , (void*)rbg->info.pWinInfo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, ssbo_window_);
 		}
 
@@ -1654,7 +1658,7 @@ public:
 
 	// no line color insersion
 	else {
-		if (fixVdp2Regs->RPMD == 0 || (fixVdp2Regs->RPMD == 3 && (fixVdp2Regs->WCTLD & 0xA) == 0) ) {
+		if ( rbg->rgb_type == 0 && (fixVdp2Regs->RPMD == 0 || (fixVdp2Regs->RPMD == 3 && (fixVdp2Regs->WCTLD & 0xA) == 0)) ) {
 			if (rbg->info.isbitmap) {
 				switch (rbg->info.colornumber) {
 				case 0: {
@@ -1790,7 +1794,7 @@ public:
 				}
 			}
 		}
-		else if (fixVdp2Regs->RPMD == 1) {
+		else if ( (fixVdp2Regs->RPMD == 1 && rbg->rgb_type == 0)  || rbg->rgb_type == 0x04 ) {
 			if (rbg->info.isbitmap) {
 				switch (rbg->info.colornumber) {
 				case 0: {
@@ -2201,7 +2205,7 @@ public:
 				}
 			}
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_window_);
-			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(vdp2WindowInfo)*int(rbg->vres / rbg->rotate_mval_v), (void*)rbg->info.pWinInfo);
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(vdp2WindowInfo)*(int(rbg->vres / rbg->rotate_mval_v)<<rbg->info.hres_shift) , (void*)rbg->info.pWinInfo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, ssbo_window_);
 		}
 	}
@@ -2262,6 +2266,7 @@ public:
 	else {
 		uniform.cram_shift = 2;
 	}
+  uniform.hires_shift = rbg->info.hres_shift;
 
   glBindBuffer(GL_UNIFORM_BUFFER, scene_uniform);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(RBGUniform), (void*)&uniform);
@@ -2271,6 +2276,7 @@ public:
 	if (rbg->rgb_type == 0x04  ) {
 		if (tex_surface_1 == 0) {
 			glActiveTexture(GL_TEXTURE0);
+      glGenTextures(1, &tex_surface_1);
 			glBindTexture(GL_TEXTURE_2D, tex_surface_1);
 			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 			ErrorHandle("glBindTexture");
@@ -2281,6 +2287,7 @@ public:
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			ErrorHandle("glTexParameteri");
+      glBindImageTexture(0, tex_surface_1, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
 		}
 		else {
 			glBindImageTexture(0, tex_surface_1, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
