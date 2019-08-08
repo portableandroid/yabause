@@ -49,6 +49,9 @@ static int game_interlace;
 static int current_width;
 static int current_height;
 
+static int max_width;
+static int max_height;
+
 static bool renderer_running = false;
 static bool hle_bios_force = false;
 static bool one_frame_rendered = false;
@@ -63,17 +66,11 @@ static int g_sh2coretype = SH2CORE_INTERPRETER;
 #endif
 
 static int g_frame_skip = 1;
-static int g_rbg_resolution_mode = 0;
-static int g_rbg_use_compute_shader = 1;
+static int g_rbg_resolution_mode = RBG_RES_ORIGINAL;
+static int g_rbg_use_compute_shader = 0;
 static int addon_cart_type = CART_DRAM32MBIT;
-static int resolution_mode = 1;
-static int initial_resolution_mode = 0;
-static int g_resolution_mode = 0;
-#ifdef LOW_END
-static int max_resolution_mode = 2;
-#else
-static int max_resolution_mode = 4;
-#endif
+static int g_resolution_mode = RES_ORIGINAL;
+static int resolution_mode = RES_ORIGINAL;
 static int polygon_mode = PERSPECTIVE_CORRECTION;
 static bool rendering_started = false;
 static int pad_type[12] = {1,1,1,1,1,1,1,1,1,1,1,1};
@@ -107,16 +104,10 @@ void retro_set_environment(retro_environment_t cb)
 #ifdef DYNAREC_DEVMIYAX
       { "yabasanshiro_sh2coretype", "SH2 Core (restart); dynarec|interpreter" },
 #endif
-#ifdef ALLOW_POLYGON_MODE
-      { "yabasanshiro_polygon_mode", "Polygon Mode; perspective_correction|gpu_tesselation|cpu_tesselation" },
-#endif
-#ifndef LOW_END
-      { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x|4x" },
-#else
-      { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x" },
-#endif
-      { "yabasanshiro_rbg_resolution_mode", "RGB resolution mode; original|2x|720p|1080p" },
-      { "yabasanshiro_rbg_use_compute_shader", "RGB use compute shader for RGB; enabled|disabled" },
+      { "yabasanshiro_polygon_mode", "Polygon Mode (restart); perspective_correction|gpu_tesselation|cpu_tesselation" },
+      { "yabasanshiro_resolution_mode", "Resolution Mode (restart); original|2x|4x|720p|1080p|4k" },
+      { "yabasanshiro_rbg_resolution_mode", "RGB resolution mode; original|2x|720p|1080p|Fit_to_emulation" },
+      { "yabasanshiro_rbg_use_compute_shader", "RGB use compute shader for RGB; disabled|enabled" },
       { NULL, NULL },
    };
 
@@ -539,35 +530,36 @@ void retro_reinit_av_info(void)
 
 void retro_set_resolution()
 {
-   // If resolution_mode > initial_resolution_mode, we'll need a restart to reallocate the max size for buffer
-   if (resolution_mode > initial_resolution_mode)
-   {
-      log_cb(RETRO_LOG_INFO, "Restart the core for x%d resolution\n", resolution_mode);
-      resolution_mode = initial_resolution_mode;
-   }
-   // Downscale resolution_mode for Hi-Res games
-   if (game_height > 256 && resolution_mode > max_resolution_mode/2)
-   {
-      log_cb(RETRO_LOG_INFO, "Halving Hi-Res games resolution mode\n", resolution_mode);
-      resolution_mode = max_resolution_mode/2;
-   }
    switch(resolution_mode)
    {
-      case 1:
-         g_resolution_mode = 3;
+      case RES_ORIGINAL:
+         current_width = game_width;
+         current_height = game_height;
          break;
-      case 2:
-         g_resolution_mode = 2;
+      case RES_4x:
+         current_width = game_width * 4;
+         current_height = game_height * 4;
          break;
-      case 4:
-         g_resolution_mode = 1;
+      case RES_2x:
+         current_width = game_width * 2;
+         current_height = game_height * 2;
+         break;
+      case RES_720P:
+         current_width = 1280;
+         current_height = 720;
+         break;
+      case RES_1080P:
+         current_width = 1920;
+         current_height = 1080;
+         break;
+      case RES_NATIVE:
+         current_width = 3840;
+         current_height = 2160;
          break;
    }
-   current_width = game_width * resolution_mode;
-   current_height = game_height * resolution_mode;
    VIDCore->Resize(0, 0, current_width, current_height, 0);
    retro_reinit_av_info();
-   VIDCore->SetSettingValue(VDP_SETTING_RESOLUTION_MODE, g_resolution_mode);
+   VIDCore->SetSettingValue(VDP_SETTING_RESOLUTION_MODE, resolution_mode);
 }
 
 void YuiSwapBuffers(void)
@@ -701,19 +693,23 @@ void check_variables(void)
    {
       if (strcmp(var.value, "original") == 0)
       {
-         g_rbg_resolution_mode = 0;
+         g_rbg_resolution_mode = RBG_RES_ORIGINAL;
       }
       else if (strcmp(var.value, "2x") == 0)
       {
-         g_rbg_resolution_mode = 1;
+         g_rbg_resolution_mode = RBG_RES_2x;
       }
       else if (strcmp(var.value, "720p") == 0)
       {
-         g_rbg_resolution_mode = 2;
+         g_rbg_resolution_mode = RBG_RES_720P;
       }
       else if (strcmp(var.value, "1080p") == 0)
       {
-         g_rbg_resolution_mode = 3;
+         g_rbg_resolution_mode = RBG_RES_1080P;
+      }
+      else if (strcmp(var.value, "Fit_to_emulation") == 0)
+      {
+         g_rbg_resolution_mode = RBG_RES_FIT_TO_EMULATION;
       }
    }
 
@@ -777,24 +773,30 @@ void check_variables(void)
    {
       if (strcmp(var.value, "original") == 0)
       {
-         resolution_mode = 1;
-         g_resolution_mode = 3;
+         g_resolution_mode = RES_ORIGINAL;
       }
       else if (strcmp(var.value, "2x") == 0)
       {
-         resolution_mode = 2;
-         g_resolution_mode = 2;
+         g_resolution_mode = RES_2x;
       }
-#ifndef LOW_END
       else if (strcmp(var.value, "4x") == 0)
       {
-         resolution_mode = 4;
-         g_resolution_mode = 1;
+         g_resolution_mode = RES_4x;
       }
-#endif
+      else if (strcmp(var.value, "720p") == 0)
+      {
+         g_resolution_mode = RES_720P;
+      }
+      else if (strcmp(var.value, "1080p") == 0)
+      {
+         g_resolution_mode = RES_1080P;
+      }
+      else if (strcmp(var.value, "4k") == 0)
+      {
+         g_resolution_mode = RES_NATIVE;
+      }
    }
 
-#ifdef ALLOW_POLYGON_MODE
    var.key = "yabasanshiro_polygon_mode";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -806,28 +808,18 @@ void check_variables(void)
       else if (strcmp(var.value, "cpu_tesselation") == 0)
          polygon_mode = CPU_TESSERATION;
    }
-#endif
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    memset(info, 0, sizeof(*info));
 
-   if(initial_resolution_mode == 0)
-   {
-      // Get the initial resolution mode at start
-      // It will be the resolution_mode limit until the core is restarted
-      check_variables();
-      initial_resolution_mode = resolution_mode;
-   }
-
    info->timing.fps            = (retro_get_region() == RETRO_REGION_NTSC) ? 60.0f : 50.0f;
    info->timing.sample_rate    = SAMPLERATE;
    info->geometry.base_width   = game_width;
    info->geometry.base_height  = game_height;
-   // No need to go above 8x what is needed by Hi-Res games, we disallow 16x for Hi-Res games
-   info->geometry.max_width    = 704 * (initial_resolution_mode == max_resolution_mode ? max_resolution_mode/2 : initial_resolution_mode);
-   info->geometry.max_height   = 512 * (initial_resolution_mode == max_resolution_mode ? max_resolution_mode/2 : initial_resolution_mode);
+   info->geometry.max_width    = max_width;
+   info->geometry.max_height   = max_height;
    info->geometry.aspect_ratio = (retro_get_region() == RETRO_REGION_NTSC) ? 4.0 / 3.0 : 5.0 / 4.0;
 }
 
@@ -999,6 +991,34 @@ bool retro_load_game(const struct retro_game_info *info)
       return false;
 
    check_variables();
+   resolution_mode = g_resolution_mode;
+   switch(resolution_mode)
+   {
+      case RES_ORIGINAL:
+         max_width = 704;
+         max_height = 512;
+         break;
+      case RES_4x:
+         max_width = 704 * 4;
+         max_height = 512 * 4;
+         break;
+      case RES_2x:
+         max_width = 704 * 2;
+         max_height = 512 * 2;
+         break;
+      case RES_720P:
+         max_width = 1280;
+         max_height = 720;
+         break;
+      case RES_1080P:
+         max_width = 1920;
+         max_height = 1080;
+         break;
+      case RES_NATIVE:
+         max_width = 3840;
+         max_height = 2160;
+         break;
+   }
 
    snprintf(full_path, sizeof(full_path), "%s", info->path);
    snprintf(bios_path, sizeof(bios_path), "%s%csaturn_bios.bin", g_system_dir, slash);
@@ -1332,11 +1352,8 @@ void retro_run(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {
-      int prev_resolution_mode = resolution_mode;
       int prev_multitap[2] = {multitap[0],multitap[1]};
       check_variables();
-      if(prev_resolution_mode != resolution_mode)
-         retro_set_resolution();
       // Unlike Kronos, this core dislike changing tesselation on the fly
       //VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
       VIDCore->SetSettingValue(VDP_SETTING_RBG_RESOLUTION_MODE, g_rbg_resolution_mode);

@@ -7,9 +7,6 @@ __USE_OPENGL_DEBUG__ = 0
 HAVE_MUSASHI = 1
 FORCE_GLES = 0
 FASTMATH = 1
-# Tesselation is broken in yabasanshiro ?
-ALLOW_POLYGON_MODE = 1
-LOW_END = 0
 DYNAREC_DEVMIYAX = 0
 USE_ARM_DRC = 0
 USE_AARCH64_DRC = 0
@@ -97,12 +94,11 @@ else ifeq ($(platform), arm64)
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -lpthread -lGL
-	FLAGS +=  -DAARCH64
+	FLAGS += -DAARCH64
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
 	USE_AARCH64_DRC = 1
 	DYNAREC_DEVMIYAX = 1
-	ALLOW_POLYGON_MODE = 0
 
 # Amlogic S922X Odroid-N2 / A311D Khadas VIM3 (AMLG12B) - 32-bit userspace
 else ifneq (,$(findstring AMLG12B,$(platform)))
@@ -116,7 +112,6 @@ else ifneq (,$(findstring AMLG12B,$(platform)))
 	FORCE_GLES = 1
 	USE_ARM_DRC = 1
 	DYNAREC_DEVMIYAX = 1
-	ALLOW_POLYGON_MODE = 0
 	FLAGS += -march=armv8-a+crc -mtune=cortex-a73.cortex-a53 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mvectorize-with-neon-quad
 
 # Rockchip RK3288 / RK3399 - 32-bit userspace
@@ -131,8 +126,6 @@ else ifneq (,$(findstring RK,$(platform)))
 	FORCE_GLES = 1
 	USE_ARM_DRC = 1
 	DYNAREC_DEVMIYAX = 1
-	LOW_END = 1
-	ALLOW_POLYGON_MODE = 0
 	
 	ifneq (,$(findstring RK3399,$(platform)))
 		FLAGS += -march=armv8-a+crc -mtune=cortex-a72.cortex-a53 -mfpu=neon-fp-armv8 
@@ -153,8 +146,6 @@ else ifneq (,$(findstring rockpro64,$(platform)))
 	FORCE_GLES = 1
 	USE_ARM_DRC = 1
 	DYNAREC_DEVMIYAX = 1
-	LOW_END = 1
-	ALLOW_POLYGON_MODE = 0
 	FLAGS += -march=armv8-a+crc -mcpu=cortex-a72 -mtune=cortex-a72.cortex-a53 -mfloat-abi=hard -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
 
 # ODROIDs
@@ -164,13 +155,12 @@ else ifeq ($(platform), odroid-n2)
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -lpthread -lGL
-	FLAGS +=  -DAARCH64
+	FLAGS += -DAARCH64
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
 	FORCE_GLES = 1
 	USE_AARCH64_DRC = 1
 	DYNAREC_DEVMIYAX = 1
-	ALLOW_POLYGON_MODE = 0
 	# ODROID-N2
 	# clang-7 run at almost full speed, gcc is crashing
 	ifneq (, $(findstring clang,$(CC)))
@@ -193,8 +183,6 @@ else ifneq (,$(findstring odroid,$(platform)))
 		FORCE_GLES = 1
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
-		LOW_END = 1
-		ALLOW_POLYGON_MODE = 0
 		# ODROID-XU3 & -XU3 Lite
 		ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
 			FLAGS += -marm -mfloat-abi=hard -mcpu=cortex-a15 -mtune=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
@@ -206,8 +194,6 @@ else ifneq (,$(findstring odroid,$(platform)))
 		FORCE_GLES = 1
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
-		LOW_END = 1
-		ALLOW_POLYGON_MODE = 0
 		# ODROID-XU4 on newer kernels now identify as ODROID-XU4
 		ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
 			FLAGS += -marm -mfloat-abi=hard -mcpu=cortex-a15 -mtune=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
@@ -239,7 +225,7 @@ else ifneq (,$(findstring ios,$(platform)))
 	fpic := -fPIC
 	SHARED := -dynamiclib
 	CC = clang -arch armv7 -isysroot $(IOSSDK)
-	CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
+	CC_AS = perl ./libretro/gas-preprocessor.pl $(CC)
 	CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
 
 # sncps3
@@ -359,14 +345,6 @@ else
 	FLAGS += -D_OGL3_
 endif
 
-ifeq ($(LOW_END), 1)
-	FLAGS += -DLOW_END
-endif
-
-ifeq ($(ALLOW_POLYGON_MODE), 1)
-	FLAGS += -DALLOW_POLYGON_MODE
-endif
-
 ifeq ($(ARCH_IS_LINUX), 1)
 	FLAGS += -DARCH_IS_LINUX=1
 endif
@@ -402,7 +380,7 @@ WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
 	-DNO_CLI -DHAVE_BUILTIN_BSWAP16=1 -DHAVE_BUILTIN_BSWAP32=1 -DHAVE_C99_VARIADIC_MACROS=1 \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
-	-DHAVE_LIBGL -DVERSION=\"2.5.1\"
+	-DHAVE_LIBGL -DVERSION=\"2.6.3\"
 
 CXXFLAGS += $(FLAGS) -std=gnu++11
 CFLAGS += $(FLAGS) -std=gnu11
