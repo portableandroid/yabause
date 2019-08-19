@@ -393,6 +393,7 @@ typedef struct  {
  float u_emu_height;
  float u_vheight;
  int u_color_ram_offset;
+ float u_viewport_offset;
 } UniformFrameBuffer;
 
 /*
@@ -606,6 +607,11 @@ typedef struct {
    int msb_shadow_count_[2];
 
    int rotate_screen;
+
+   int screen_width;
+   int screen_height;
+   int keep_aspect;
+   int isFullScreen;
 
 }  Ygl;
 

@@ -37,6 +37,7 @@ public class YabauseRunnable implements Runnable
     public static native void pause();
     public static native void resume();
     public static native void setPolygonGenerationMode( int pg );
+    public static native void setKeepAspect( int ka);
     public static native void setSoundEngine( int engine );
     public static native void setResolutionMode( int resoution_mode );
     public static native void setRbgResolutionMode( int resoution_mode );
@@ -55,7 +56,7 @@ public class YabauseRunnable implements Runnable
     public static native String getFile( int index  );
     public static native String putFile( );
     public static native int copy( int target_device, int file_index );
-
+    public static native String getGameinfoFromChd( String path );
 
     private boolean inited;
     private boolean paused;
