@@ -97,7 +97,7 @@ void OSDPushMessageDirect(char * msg) {
 
 int VIDOGLInit(void);
 void VIDOGLDeInit(void);
-void VIDOGLResize(int, int, unsigned int, unsigned int, int);
+void VIDOGLResize(int, int, unsigned int, unsigned int, int, int);
 int VIDOGLIsFullscreen(void);
 int VIDOGLVdp1Reset(void);
 void VIDOGLVdp1DrawStart(void);
@@ -477,12 +477,18 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
     for (i = 0; i < sprite->h; i++) {
       u16 j;
       j = 0;
+      endcnt = 0;
       while (j < sprite->w) {
         dot = T1ReadByte(Vdp1Ram, charAddr & 0x7FFFF);
 
         // Pixel 1
-        if (((dot >> 4) == 0) && !SPD) *texture->textdata++ = 0x00;
-        else if (((dot >> 4) == 0x0F) && !END) *texture->textdata++ = 0x00;
+        if ( endcnt >= 2) {
+          *texture->textdata++ = 0;
+        }else if (((dot >> 4) == 0) && !SPD) *texture->textdata++ = 0x00;
+        else if (((dot >> 4) == 0x0F) && !END) {
+          *texture->textdata++ = 0x00;
+          endcnt++;
+        }
         else if (MSB_SHADOW) {
           *texture->textdata++ = VDP1COLOR(1, 0, priority, 1, 0);
         }
@@ -500,8 +506,13 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
         j += 1;
 
         // Pixel 2
-        if (((dot & 0xF) == 0) && !SPD) *texture->textdata++ = 0x00;
-        else if (((dot & 0xF) == 0x0F) && !END) *texture->textdata++ = 0x00;
+        if (endcnt >= 2) {
+          *texture->textdata++ = 0;
+        }else if (((dot & 0xF) == 0) && !SPD) *texture->textdata++ = 0x00;
+        else if (((dot & 0xF) == 0x0F) && !END) {
+          *texture->textdata++ = 0x00;
+          endcnt++;
+        }
         else if (MSB_SHADOW) {
           *texture->textdata++ = VDP1COLOR(1, 0, priority, 1, 0);
         }
@@ -649,17 +660,21 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
   {
     // 8 bpp(64 color) Bank mode
     u32 colorBank = cmd->CMDCOLR & 0xFFC0;
-
     u16 i, j;
-
     for (i = 0; i < sprite->h; i++)
     {
+      endcnt = 0;
       for (j = 0; j < sprite->w; j++)
       {
         dot = T1ReadByte(Vdp1Ram, charAddr & 0x7FFFF);
         charAddr++;
-        if ((dot == 0) && !SPD) *texture->textdata++ = 0x00;
-        else if ((dot == 0xFF) && !END) *texture->textdata++ = 0x00;
+        if (endcnt >= 2) {
+          *texture->textdata++ = 0x0;
+        }else if ((dot == 0) && !SPD) *texture->textdata++ = 0x00;
+        else if ((dot == 0xFF) && !END) {
+          *texture->textdata++ = 0x00;
+          endcnt++;
+        }
         else if (MSB_SHADOW) {
           *texture->textdata++ = VDP1COLOR(1, 0, priority, 1, 0);
         }
@@ -685,16 +700,20 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
     // 8 bpp(128 color) Bank mode
     u32 colorBank = cmd->CMDCOLR & 0xFF80;
     u16 i, j;
-
     for (i = 0; i < sprite->h; i++)
     {
+      endcnt = 0;
       for (j = 0; j < sprite->w; j++)
       {
         dot = T1ReadByte(Vdp1Ram, charAddr & 0x7FFFF);
         charAddr++;
-
-        if ((dot == 0) && !SPD) *texture->textdata++ = 0x00;
-        else if ((dot == 0xFF) && !END) *texture->textdata++ = 0x00;
+        if (endcnt >= 2) {
+          *texture->textdata++ = 0x0;
+        }else if ((dot == 0) && !SPD) *texture->textdata++ = 0x00;
+        else if ((dot == 0xFF) && !END) {
+          *texture->textdata++ = 0x00;
+          endcnt++;
+        }
         else if (MSB_SHADOW) {
           *texture->textdata++ = VDP1COLOR(1, 0, priority, 1, 0);
         }
@@ -723,13 +742,17 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
     u16 i, j;
 
     for (i = 0; i < sprite->h; i++) {
+      endcnt = 0;
       for (j = 0; j < sprite->w; j++) {
         dot = T1ReadByte(Vdp1Ram, charAddr & 0x7FFFF);
         charAddr++;
-        if ((dot == 0) && !SPD) {
+        if (endcnt >= 2) {
+          *texture->textdata++ = 0x0;
+        }else if ((dot == 0) && !SPD) {
           *texture->textdata++ = 0x00;
         } else if ((dot == 0xFF) && !END) {
           *texture->textdata++ = 0x0;
+          endcnt++;
         } else if (MSB_SHADOW) {
           *texture->textdata++ = VDP1COLOR(1, 0, priority, 1, 0);
         } else if ((dot | colorBank) == nromal_shadow) {
@@ -760,16 +783,20 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
 
     for (i = 0; i < sprite->h; i++)
     {
+      endcnt = 0;
       for (j = 0; j < sprite->w; j++)
       {
         dot = T1ReadWord(Vdp1Ram, charAddr & 0x7FFFF);
         charAddr += 2;
 
-        if (!(dot & 0x8000) && !SPD) {
+        if (endcnt == 2) {
+          *texture->textdata++ = 0x0;
+        }else if (!(dot & 0x8000) && !SPD) {
           *texture->textdata++ = 0x00;
         }
         else if ((dot == 0x7FFF) && !END) {
           *texture->textdata++ = 0x0;
+          endcnt++;
         }
         else if (MSB_SHADOW || (nromal_shadow!=0 && dot == nromal_shadow) ) {
           *texture->textdata++ = VDP1COLOR(0, 1, priority, 1, 0);
@@ -3712,8 +3739,41 @@ static void SetSaturnResolution(int width, int height)
   YglChangeResolution(width, height);
   YglSetDensity((vdp2_interlace == 0) ? 1 : 2);
 
-  vdp2width = width;
-  vdp2height = height;
+  if (vdp2width != width || vdp2height != height) {
+    vdp2width = width;
+    vdp2height = height;
+    if (_Ygl->screen_width != 0 && _Ygl->screen_height != 0) {
+      GlWidth = _Ygl->screen_width;
+      GlHeight = _Ygl->screen_height;
+      _Ygl->originx = 0;
+      _Ygl->originy = 0;
+      if (_Ygl->keep_aspect == 1) {
+
+        if (_Ygl->isFullScreen) {
+          if (GlHeight > GlWidth) {
+            float hrate = (float)((_Ygl->rheight > 256)?_Ygl->rheight/2:_Ygl->rheight) / (float)((_Ygl->rwidth > 352)?_Ygl->rwidth/2:_Ygl->rwidth);
+            _Ygl->originy = (GlHeight - GlWidth  * hrate);
+            GlHeight = _Ygl->screen_width * hrate;
+          }
+          else {
+            float wrate = (float)((_Ygl->rwidth > 352) ? _Ygl->rwidth / 2 :_Ygl->rwidth) / (float)((_Ygl->rheight > 256)?_Ygl->rheight/2:_Ygl->rheight);
+            _Ygl->originx = (GlWidth - GlHeight * wrate) / 2.0f;
+            GlWidth = GlHeight * wrate;
+          }
+        }
+        else {
+          float hrate = (float)((_Ygl->rheight > 256)?_Ygl->rheight/2:_Ygl->rheight) / (float)((_Ygl->rwidth > 352) ? _Ygl->rwidth / 2 : _Ygl->rwidth);
+          _Ygl->originy = (GlHeight - GlWidth  * hrate) / 2.0f;
+          GlHeight = GlWidth * hrate;
+        }
+      }
+    }
+    if (_Ygl->resolution_mode == RES_NATIVE && (_Ygl->width != GlWidth || _Ygl->height != GlHeight)) {
+      _Ygl->width = GlWidth;
+      _Ygl->height = GlHeight;
+    }
+    YglNeedToUpdateWindow();
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3757,9 +3817,8 @@ void VIDOGLDeInit(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-int _VIDOGLIsFullscreen;
 
-void VIDOGLResize(int originx, int originy, unsigned int w, unsigned int h, int on)
+void VIDOGLResize(int originx, int originy, unsigned int w, unsigned int h, int on, int keep_aspect)
 {
 
   if (originx == 0 && originy == 0 && w == 0 && h == 0 && on == 0) {
@@ -3767,31 +3826,30 @@ void VIDOGLResize(int originx, int originy, unsigned int w, unsigned int h, int 
     return;
   }
 
-  _VIDOGLIsFullscreen = on;
-
-  GlWidth = w;
-  GlHeight = h;
-
-  if (_Ygl->resolution_mode == RES_NATIVE && (_Ygl->width != GlWidth || _Ygl->height != GlHeight)) {
-    _Ygl->width = GlWidth;
-    _Ygl->height = GlHeight;
+  if( w != -1 && h != -1 ){
+    GlWidth = w;
+    GlHeight = h;
   }
 
+  _Ygl->isFullScreen = on;
   _Ygl->originx = originx;
   _Ygl->originy = originy;
-
+  _Ygl->screen_width = w;
+  _Ygl->screen_height = h;
+  _Ygl->keep_aspect = keep_aspect;
   YglGLInit(2048, 1024);
-  glViewport(originx, originy, GlWidth, GlHeight);
-  YglNeedToUpdateWindow();
 
-  SetSaturnResolution(vdp2width, vdp2height);
-
+  int tmpw = vdp2width;
+  int tmph = vdp2height;
+  vdp2width = 0;   // to force update 
+  vdp2height = 0;
+  SetSaturnResolution(tmpw, tmph);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 int VIDOGLIsFullscreen(void) {
-  return _VIDOGLIsFullscreen;
+  return _Ygl->isFullScreen;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3904,8 +3962,8 @@ void VIDOGLVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
   CMDXA = cmd.CMDXA;
   CMDYA = cmd.CMDYA;
 
-  if ((CMDXA & 0x400)) CMDXA |= 0xFC00; else CMDXA &= ~(0xFC00);
-  if ((CMDYA & 0x400)) CMDYA |= 0xFC00; else CMDYA &= ~(0xFC00);
+  if ((CMDXA & 0x1000)) CMDXA |= 0xE000; else CMDXA &= ~(0xE000);
+  if ((CMDYA & 0x1000)) CMDYA |= 0xE000; else CMDYA &= ~(0xE000);
 
   x = CMDXA + Vdp1Regs->localX;
   y = CMDYA + Vdp1Regs->localY;
@@ -4034,10 +4092,10 @@ void VIDOGLVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
   sprite.blendmode = VDP1_COLOR_CL_REPLACE;
   sprite.linescreen = 0;
 
-  if ((cmd.CMDYA & 0x400)) cmd.CMDYA |= 0xFC00; else cmd.CMDYA &= ~(0xFC00);
-  if ((cmd.CMDYC & 0x400)) cmd.CMDYC |= 0xFC00; else cmd.CMDYC &= ~(0xFC00);
-  if ((cmd.CMDYB & 0x400)) cmd.CMDYB |= 0xFC00; else cmd.CMDYB &= ~(0xFC00);
-  if ((cmd.CMDYD & 0x400)) cmd.CMDYD |= 0xFC00; else cmd.CMDYD &= ~(0xFC00);
+  if ((cmd.CMDYA & 0x1000)) cmd.CMDYA |= 0xE000; else cmd.CMDYA &= ~(0xE000);
+  if ((cmd.CMDYC & 0x1000)) cmd.CMDYC |= 0xE000; else cmd.CMDYC &= ~(0xE000);
+  if ((cmd.CMDYB & 0x1000)) cmd.CMDYB |= 0xE000; else cmd.CMDYB &= ~(0xE000);
+  if ((cmd.CMDYD & 0x1000)) cmd.CMDYD |= 0xE000; else cmd.CMDYD &= ~(0xE000);
 
   x = cmd.CMDXA + Vdp1Regs->localX;
   y = cmd.CMDYA + Vdp1Regs->localY;
@@ -4263,15 +4321,15 @@ void VIDOGLVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 
   sprite.flip = (cmd.CMDCTRL & 0x30) >> 4;
 
-  if ((cmd.CMDYA & 0x400)) cmd.CMDYA |= 0xFC00; else cmd.CMDYA &= ~(0xFC00);
-  if ((cmd.CMDYC & 0x400)) cmd.CMDYC |= 0xFC00; else cmd.CMDYC &= ~(0xFC00);
-  if ((cmd.CMDYB & 0x400)) cmd.CMDYB |= 0xFC00; else cmd.CMDYB &= ~(0xFC00);
-  if ((cmd.CMDYD & 0x400)) cmd.CMDYD |= 0xFC00; else cmd.CMDYD &= ~(0xFC00);
+  if ((cmd.CMDYA & 0x1000)) cmd.CMDYA |= 0xE000; else cmd.CMDYA &= ~(0xE000);
+  if ((cmd.CMDYC & 0x1000)) cmd.CMDYC |= 0xE000; else cmd.CMDYC &= ~(0xE000);
+  if ((cmd.CMDYB & 0x1000)) cmd.CMDYB |= 0xE000; else cmd.CMDYB &= ~(0xE000);
+  if ((cmd.CMDYD & 0x1000)) cmd.CMDYD |= 0xE000; else cmd.CMDYD &= ~(0xE000);
 
-  if ((cmd.CMDXA & 0x400)) cmd.CMDXA |= 0xFC00; else cmd.CMDXA &= ~(0xFC00);
-  if ((cmd.CMDXC & 0x400)) cmd.CMDXC |= 0xFC00; else cmd.CMDXC &= ~(0xFC00);
-  if ((cmd.CMDXB & 0x400)) cmd.CMDXB |= 0xFC00; else cmd.CMDXB &= ~(0xFC00);
-  if ((cmd.CMDXD & 0x400)) cmd.CMDXD |= 0xFC00; else cmd.CMDXD &= ~(0xFC00);
+  if ((cmd.CMDXA & 0x1000)) cmd.CMDXA |= 0xE000; else cmd.CMDXA &= ~(0xE000);
+  if ((cmd.CMDXC & 0x1000)) cmd.CMDXC |= 0xE000; else cmd.CMDXC &= ~(0xE000);
+  if ((cmd.CMDXB & 0x1000)) cmd.CMDXB |= 0xE000; else cmd.CMDXB &= ~(0xE000);
+  if ((cmd.CMDXD & 0x1000)) cmd.CMDXD |= 0xE000; else cmd.CMDXD &= ~(0xE000);
 
   sprite.vertices[0] = (s16)cmd.CMDXA;
   sprite.vertices[1] = (s16)cmd.CMDYA;
@@ -4488,10 +4546,10 @@ void VIDOGLVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 
   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
-  if ((cmd.CMDYA & 0x400)) cmd.CMDYA |= 0xFC00; else cmd.CMDYA &= ~(0xFC00);
-  if ((cmd.CMDYC & 0x400)) cmd.CMDYC |= 0xFC00; else cmd.CMDYC &= ~(0xFC00);
-  if ((cmd.CMDYB & 0x400)) cmd.CMDYB |= 0xFC00; else cmd.CMDYB &= ~(0xFC00);
-  if ((cmd.CMDYD & 0x400)) cmd.CMDYD |= 0xFC00; else cmd.CMDYD &= ~(0xFC00);
+  if ((cmd.CMDYA & 0x1000)) cmd.CMDYA |= 0xE000; else cmd.CMDYA &= ~(0xE000);
+  if ((cmd.CMDYC & 0x1000)) cmd.CMDYC |= 0xE000; else cmd.CMDYC &= ~(0xE000);
+  if ((cmd.CMDYB & 0x1000)) cmd.CMDYB |= 0xE000; else cmd.CMDYB &= ~(0xE000);
+  if ((cmd.CMDYD & 0x1000)) cmd.CMDYD |= 0xE000; else cmd.CMDYD &= ~(0xE000);
 
   sprite.blendmode = VDP1_COLOR_CL_REPLACE;
   sprite.dst = 0;

@@ -326,8 +326,8 @@ void UIYabause::resizeEvent( QResizeEvent* event )
   mYabauseGL->viewport_origin_x_ = 0;
   mYabauseGL->viewport_origin_y_ = 0;
 
-	//if (event->oldSize().width() != event->size().width())
-  fixAspectRatio(event->size().width(), event->size().height());
+	if (event->oldSize().width() != event->size().width())
+    fixAspectRatio(event->size().width(), event->size().height());
 
 	QMainWindow::resizeEvent( event );
 }
@@ -477,6 +477,11 @@ void UIYabause::fixAspectRatio( int width , int height )
       if (this->isFullScreen()) {
 
         if (aspectRatio == 1) {
+          mYabauseGL->viewport_width_ = width;
+          mYabauseGL->viewport_height_ = height;
+          mYabauseGL->viewport_origin_x_ = 0;
+          mYabauseGL->viewport_origin_y_ = 0;
+#if 0
           float specratio = (float)width / (float)height;
           int saturnw = 4;
           int saturnh = 3;
@@ -518,8 +523,8 @@ void UIYabause::fixAspectRatio( int width , int height )
             mYabauseGL->viewport_origin_x_ = (width - mYabauseGL->viewport_width_) / 2.0;
             mYabauseGL->viewport_origin_y_ = (height - mYabauseGL->viewport_height_) / 2.0;
           }
+#endif
         }
-
       }
       else{
         int heightOffset = toolBar->height();
@@ -680,6 +685,8 @@ void UIYabause::toggleFullscreen( int width, int height, bool f, int videoFormat
 
 void UIYabause::fullscreenRequested( bool f )
 {
+  mYabauseGL->setFullscren(f);
+
 	if ( isFullScreen() && !f )
 	{
 #ifdef USE_UNIFIED_TITLE_TOOLBAR
@@ -724,6 +731,7 @@ void UIYabause::fullscreenRequested( bool f )
 			toolBar->hide();
 
 		hideMouseTimer->start(3 * 1000);
+
 	}
 	if ( aViewFullscreen->isChecked() != f )
 		aViewFullscreen->setChecked( f );
@@ -935,7 +943,7 @@ void UIYabause::on_actionOpen_Tray_triggered()
 		mIsCdIn = false;
 	}
 	else{
-		const QString fn = CommonDialogs::getOpenFileName(QtYabause::volatileSettings()->value("Recents/ISOs").toString(), QtYabause::translate("Select your iso/cue/bin file"), QtYabause::translate("CD Images (*.iso *.cue *.bin *.mds *.ccd)"));
+		const QString fn = CommonDialogs::getOpenFileName(QtYabause::volatileSettings()->value("Recents/ISOs").toString(), QtYabause::translate("Select your iso/cue/bin file"), QtYabause::translate("CD Images (*.chd *.iso *.cue *.bin *.mds *.ccd)"));
 		if (!fn.isEmpty())
 		{
 			VolatileSettings* vs = QtYabause::volatileSettings();
@@ -960,7 +968,7 @@ void UIYabause::on_actionOpen_Tray_triggered()
 void UIYabause::on_aFileOpenISO_triggered()
 {
 	YabauseLocker locker( mYabauseThread );
-	const QString fn = CommonDialogs::getOpenFileName( QtYabause::volatileSettings()->value( "Recents/ISOs" ).toString(), QtYabause::translate( "Select your iso/cue/bin file" ), QtYabause::translate( "CD Images (*.iso *.cue *.bin *.mds *.ccd)" ) );
+	const QString fn = CommonDialogs::getOpenFileName( QtYabause::volatileSettings()->value( "Recents/ISOs" ).toString(), QtYabause::translate( "Select your iso/cue/bin file" ), QtYabause::translate( "CD Images (*.chd *.iso *.cue *.bin *.mds *.ccd)" ) );
 	if ( !fn.isEmpty() )
 	{
 		VolatileSettings* vs = QtYabause::volatileSettings();
