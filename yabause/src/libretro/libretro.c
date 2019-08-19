@@ -557,7 +557,7 @@ void retro_set_resolution()
          current_height = 2160;
          break;
    }
-   VIDCore->Resize(0, 0, current_width, current_height, 0);
+   VIDCore->Resize(0, 0, current_width, current_height, 0, 0);
    retro_reinit_av_info();
    VIDCore->SetSettingValue(VDP_SETTING_RESOLUTION_MODE, resolution_mode);
 }
@@ -659,8 +659,8 @@ void retro_get_system_info(struct retro_system_info *info)
 #endif
    info->library_version  = "v" VERSION GIT_VERSION;
    info->need_fullpath    = true;
-   info->block_extract    = false;
-   info->valid_extensions = "cue|iso|mds|ccd";
+   info->block_extract    = true;
+   info->valid_extensions = "cue|iso|mds|ccd|chd";
 }
 
 void check_variables(void)

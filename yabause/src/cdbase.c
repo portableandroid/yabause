@@ -32,6 +32,14 @@
 #include "error.h"
 #include "debug.h"
 
+#ifdef __LIBRETRO__
+// Remove this for now, execution on windows fails because of it
+// #include "streams/file_stream_transforms.h"
+#include "compat/posix_string.h"
+#undef stricmp
+#define stricmp strcasecmp
+#endif
+
 #ifndef HAVE_STRICMP
 #ifdef HAVE_STRCASECMP
 #define stricmp strcasecmp
