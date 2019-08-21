@@ -2,8 +2,21 @@ SOURCE_DIR := $(CORE_DIR)/../yabause/src
 ifeq ($(LIBRETRO_COMM_DIR),)
 LIBRETRO_COMM_DIR := $(CORE_DIR)/../libretro-common
 endif
+LIBCHDR_DIR := $(SOURCE_DIR)/libchdr
+LZMA_DIR := $(LIBCHDR_DIR)/deps/lzma-16.04
+CRYPTO_DIR := $(LIBCHDR_DIR)/deps/crypto
+FLAC_DIR := $(LIBCHDR_DIR)/deps/flac-1.3.2
+ZLIB_DIR := $(LIBCHDR_DIR)/deps/zlib-1.2.11
 
-INCFLAGS := -I$(CORE_DIR) -I$(SOURCE_DIR) -I$(SOURCE_DIR)/tools -I$(LIBRETRO_COMM_DIR)/include
+INCLUDE_DIRS := $(CORE_DIR) \
+	$(SOURCE_DIR) \
+	$(LIBRETRO_COMM_DIR)/include \
+	$(LIBCHDR_DIR)/src \
+	$(LZMA_DIR)/C \
+	$(CRYPTO_DIR) \
+	$(FLAC_DIR)/include \
+	$(FLAC_DIR)/src/libFLAC/include \
+	$(ZLIB_DIR)
 
 OBJECTS_S :=
 
@@ -20,6 +33,7 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/error.c \
 	$(SOURCE_DIR)/gameinfo.c \
 	$(SOURCE_DIR)/japmodem.c \
+	$(SOURCE_DIR)/junzip.c \
 	$(SOURCE_DIR)/m68kc68k.c \
 	$(SOURCE_DIR)/m68kcore.c \
 	$(SOURCE_DIR)/memory.c \
@@ -35,7 +49,30 @@ SOURCES_C := $(SOURCE_DIR)/osdcore.c \
 	$(SOURCE_DIR)/sh2idle.c \
 	$(SOURCE_DIR)/sh2int.c \
 	$(SOURCE_DIR)/sh2trace.c \
-	$(SOURCE_DIR)/smpc.c
+	$(SOURCE_DIR)/smpc.c \
+	$(LIBCHDR_DIR)/src/chd.c \
+	$(LIBCHDR_DIR)/src/bitstream.c \
+	$(LIBCHDR_DIR)/src/huffman.c \
+	$(LIBCHDR_DIR)/src/flac.c \
+	$(LIBCHDR_DIR)/src/cdrom.c \
+	$(FLAC_DIR)/src/libFLAC/stream_decoder.c \
+	$(FLAC_DIR)/src/libFLAC/format.c \
+	$(FLAC_DIR)/src/libFLAC/bitreader.c \
+	$(FLAC_DIR)/src/libFLAC/crc.c \
+	$(FLAC_DIR)/src/libFLAC/memory.c \
+	$(FLAC_DIR)/src/libFLAC/lpc.c \
+	$(FLAC_DIR)/src/libFLAC/cpu.c \
+	$(FLAC_DIR)/src/libFLAC/md5.c \
+	$(FLAC_DIR)/src/libFLAC/fixed.c \
+	$(LZMA_DIR)/C/LzmaEnc.c \
+	$(LZMA_DIR)/C/LzFind.c \
+	$(LZMA_DIR)/C/LzmaDec.c \
+	$(ZLIB_DIR)/adler32.c \
+	$(ZLIB_DIR)/crc32.c \
+	$(ZLIB_DIR)/inffast.c \
+	$(ZLIB_DIR)/inflate.c \
+	$(ZLIB_DIR)/inftrees.c \
+	$(ZLIB_DIR)/zutil.c
 
 ifeq ($(HAVE_GRIFFIN), 1)
 	SOURCES_C += $(LIBRETRO_DIR)/yabause_griffin.c

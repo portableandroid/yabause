@@ -14,7 +14,7 @@ endif
 
 include $(CORE_DIR)/Makefile.common
 
-COREFLAGS := -DINLINE=inline -D__LIBRETRO__ -DVERSION=\"0.9.14\" -DUSE_SCSP2=1 -DNO_CLI -DHAVE_GETTIMEOFDAY -DHAVE_STRCASECMP $(INCFLAGS) $(FLAGS)
+COREFLAGS := -DINLINE=inline -D__LIBRETRO__ -DVERSION=\"0.9.14\" -DUSE_SCSP2=1 -DNO_CLI -DHAVE_GETTIMEOFDAY -DHAVE_STRCASECMP -DHAVE_LROUND -D_7ZIP_ST -DFLAC__HAS_OGG=0 -DHAVE_SYS_PARAM_H $(FLAGS)
 
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")
@@ -22,8 +22,9 @@ ifneq ($(GIT_VERSION)," unknown")
 endif
 
 include $(CLEAR_VARS)
-LOCAL_MODULE    := retro
-LOCAL_SRC_FILES := $(SOURCES_CXX) $(SOURCES_C) $(OBJECTS_S) $(C68KEXEC_SOURCE)
-LOCAL_CFLAGS    := -std=gnu99 $(COREFLAGS)
-LOCAL_LDFLAGS   := -Wl,-version-script=$(CORE_DIR)/link.T
+LOCAL_MODULE       := retro
+LOCAL_SRC_FILES    := $(SOURCES_CXX) $(SOURCES_C) $(OBJECTS_S) $(C68KEXEC_SOURCE)
+LOCAL_C_INCLUDES   := $(INCLUDE_DIRS)
+LOCAL_CFLAGS       := -std=gnu99 $(COREFLAGS)
+LOCAL_LDFLAGS      := -Wl,-version-script=$(CORE_DIR)/link.T
 include $(BUILD_SHARED_LIBRARY)

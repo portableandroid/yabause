@@ -1,6 +1,8 @@
-/*  Copyright 2004-2008, 2013 Theo Berkau
+/*  src/cd-libretro.c: Iso functions for Libretro
+    Copyright 2004-2008, 2013 Theo Berkau
     Copyright 2005 Joost Peters
     Copyright 2005-2006 Guillaume Duhamel
+    Copyright 2019 barbudreadmon
 
     This file is part of Yabause.
 
@@ -19,9 +21,6 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/*! \file cdbase.c
-    \brief Dummy and ISO, BIN/CUE, MDS CD Interfaces
-*/
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
@@ -31,6 +30,8 @@
 #include "cdbase.h"
 #include "error.h"
 #include "debug.h"
+#include "junzip.h"
+#include "zlib.h"
 
 #include "streams/file_stream.h"
 #include "compat/posix_string.h"
@@ -88,6 +89,7 @@ static int DummyCDGetStatus(void);
 static s32 DummyCDReadTOC(u32 *);
 static int DummyCDReadSectorFAD(u32, void *);
 static void DummyCDReadAheadFAD(u32);
+static void DummyCDSetStatus(int status );
 
 CDInterface DummyCD = {
 CDCORE_DUMMY,
@@ -98,6 +100,7 @@ DummyCDGetStatus,
 DummyCDReadTOC,
 DummyCDReadSectorFAD,
 DummyCDReadAheadFAD,
+DummyCDSetStatus,
 };
 
 static int ISOCDInit(const char *);
@@ -106,6 +109,7 @@ static int ISOCDGetStatus(void);
 static s32 ISOCDReadTOC(u32 *);
 static int ISOCDReadSectorFAD(u32, void *);
 static void ISOCDReadAheadFAD(u32);
+static void ISOCDSetStatus(int status);
 
 CDInterface ISOCD = {
 CDCORE_ISO,
@@ -116,8 +120,10 @@ ISOCDGetStatus,
 ISOCDReadTOC,
 ISOCDReadSectorFAD,
 ISOCDReadAheadFAD,
+ISOCDSetStatus,
 };
 
+static int dmy_status = 2;
 //////////////////////////////////////////////////////////////////////////////
 // Dummy Interface
 //////////////////////////////////////////////////////////////////////////////
@@ -155,7 +161,15 @@ static int DummyCDGetStatus(void)
 	// player, etc. recognizes when you've ejected the tray and popped in
 	// another disc.
 
-	return 0;
+	return dmy_status;
+}
+
+static void DummyCDSetStatus(int status){
+  dmy_status = status;
+  if (dmy_status != 3) {
+    dmy_status = 2;
+  }
+	return;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -254,7 +268,16 @@ typedef struct
    int file_size;
    int file_id;
    int interleaved_sub;
+   u32 frames;
+   u32 extraframes;
+   u32 pregap;
+   u32 postgap;
+   u32 physframeofs;
+   u32 chdframeofs;
+   u32 logframeofs;
+   int isZip;
    char* filename;
+   ZipEntry* tr;
 } track_info_struct;
 
 typedef struct
@@ -268,6 +291,8 @@ typedef struct
 typedef struct
 {
    int session_num;
+   JZFile *zip;
+   JZEndRecord* endRecord;
    session_info_struct *session;
 } disc_info_struct;
 
@@ -353,7 +378,7 @@ typedef struct
 } ccd_struct;
 
 static const s8 syncHdr[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
-enum IMG_TYPE { IMG_NONE, IMG_ISO, IMG_BINCUE, IMG_MDS, IMG_CCD, IMG_NRG };
+enum IMG_TYPE { IMG_NONE, IMG_ISO, IMG_BINCUE, IMG_MDS, IMG_CCD, IMG_CHD, IMG_NRG };
 enum IMG_TYPE imgtype = IMG_ISO;
 static u32 isoTOC[102];
 static disc_info_struct disc;
@@ -371,7 +396,7 @@ static char slash = '/';
 
 //////////////////////////////////////////////////////////////////////////////
 static int shallBeEscaped(char c) {
-  return ((c==slash));
+  return ((c=='\\'));
 }
 
 static int charToEscape(char *buffer) {
@@ -447,6 +472,9 @@ static RFILE* OpenFile(char* buffer, const char* cue) {
    return ret_file;
 }
 
+static int LoadCHD(const char *chd_filename, RFILE *iso_file);
+static int ISOCDReadSectorFADFromCHD(u32 FAD, void *buffer);
+
 static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
 {
    long size;
@@ -454,7 +482,7 @@ static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
    unsigned int track_num;
    unsigned int indexnum, min, sec, frame;
    unsigned int pregap=0;
-   track_info_struct* trk = calloc(100, sizeof(track_info_struct));
+   track_info_struct trk[100];
    int i;
    int matched = 0;
    RFILE *trackfp = NULL;
@@ -462,6 +490,7 @@ static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
    int fad = 150;
    int current_file_id = 0;
 
+   memset(trk, 0, sizeof(trk));
    disc.session_num = 1;
    disc.session = malloc(sizeof(session_info_struct) * disc.session_num);
    if (disc.session == NULL)
@@ -592,6 +621,306 @@ static int LoadBinCue(const char *cuefilename, RFILE *iso_file)
    free(temp_buffer);
 
    filestream_close(iso_file);
+   return 0;
+}
+
+
+int infoFile(JZFile *zip, int idx, JZFileHeader *header, char *filename, void *user_data) {
+    long offset;
+    char name[1024];
+    offset = zip->tell(zip); // store current position
+    ZipEntry *entry = (ZipEntry*)user_data;
+
+   if (entry == NULL) exit(-1);
+
+    if(zip->seek(zip, header->offset, SEEK_SET)) {
+        printf("Cannot seek in zip file!\n");
+        return 0; // abort
+    }
+
+    if (entry->filename == NULL){
+      //look for *.cue file
+       char *last = strstr(filename, ".cue");
+       if (last == NULL) last = strstr(filename, ".Cue");
+       if (last == NULL) last = strstr(filename, ".CUE");
+       if (last != NULL) {
+        if(jzReadLocalFileHeader(zip, header, name, sizeof(name))) {
+          printf("Couldn't read local file header!\n");
+          exit(-1);
+        }
+        entry->zipBuffer = NULL;
+        entry->size = header->uncompressedSize;
+        return 0;
+       }
+    } else {
+      char *last = strrchr(filename, '/');
+      if (last == NULL) last = filename;
+      else last = last+1;
+      char* fileToSearch = entry->filename;
+      if (strcmp(last, fileToSearch) == 0) {
+        //File found
+        entry->zipBuffer = NULL;
+        entry->size = header->uncompressedSize;
+        return 0;
+      }
+    }
+
+    zip->seek(zip, offset, SEEK_SET); // return to position
+
+    return 1; // continue
+}
+
+int deflateFile(JZFile *zip, int idx, JZFileHeader *header, char *filename, void *user_data) {
+    long offset;
+    char name[1024];
+    offset = zip->tell(zip); // store current position
+    ZipEntry *entry = (ZipEntry*)user_data;
+   if (entry == NULL) exit(-1);
+    if(zip->seek(zip, header->offset, SEEK_SET)) {
+        printf("Cannot seek in zip file!\n");
+        return 0; // abort
+    }
+    if (entry->filename == NULL){
+      //look for *.cue file
+       char *last = strstr(filename, ".cue");
+       if (last == NULL) last = strstr(filename, ".Cue");
+       if (last == NULL) last = strstr(filename, ".CUE");
+       if (last != NULL) {
+        if(jzReadLocalFileHeader(zip, header, name, sizeof(name))) {
+          printf("Couldn't read local file header!\n");
+          exit(-1);
+        }
+        CDLOG("uncompressed %d %f %f\n", header->uncompressedSize, header->uncompressedSize/2448.0, header->uncompressedSize/2352.0);
+        if((entry->zipBuffer = (u8*)malloc(header->uncompressedSize)) == NULL) {
+          printf("Couldn't allocate memory!\n");
+          exit(-1);
+        }
+        if (jzReadData(zip, header, entry->zipBuffer) == Z_OK)
+          entry->size = header->uncompressedSize;
+        else {
+          free (entry->zipBuffer);
+          entry->zipBuffer = NULL;
+          entry->size = 0;
+        }
+        return 0;
+       }
+    } else {
+      char *last = strrchr(filename, '/');
+      if (last == NULL) last = filename;
+      else last = last+1;
+      char* fileToSearch = entry->filename;
+      if (strcmp(last, fileToSearch) == 0) {
+        if(jzReadLocalFileHeader(zip, header, name, sizeof(name))) {
+          printf("Couldn't read local file header!\n");
+          exit(-1);
+        }
+        CDLOG("uncompressed %d %f %f\n", header->uncompressedSize, header->uncompressedSize/2448.0, header->uncompressedSize/2352.0);
+        if((entry->zipBuffer = (u8*)malloc(header->uncompressedSize)) == NULL) {
+          printf("Couldn't allocate memory!\n");
+          exit(-1);
+        }
+        if (jzReadData(zip, header, entry->zipBuffer) == Z_OK)
+          entry->size = header->uncompressedSize;
+        else {
+          free (entry->zipBuffer);
+          entry->zipBuffer = NULL;
+          entry->size = 0;
+        }
+        return 0;
+      }
+    }
+    zip->seek(zip, offset, SEEK_SET); // return to position
+    return 1; // continue
+}
+
+static ZipEntry* getZipFileLocalInfo(JZFile *zip, JZEndRecord* endRecord, char* filename, int deflate) {
+   ZipEntry* entry = (ZipEntry*)malloc(sizeof(ZipEntry));
+   entry->filename = NULL;
+   entry->zipBuffer = NULL;
+   entry->size = 0;
+   if (filename != NULL)
+     entry->filename = strdup(filename);
+   if (deflate != 0) {
+     if(jzReadCentralDirectory(zip, endRecord, deflateFile, entry)) {
+      printf("Couldn't read ZIP file central record.\n");
+      return NULL;
+     }
+  } else {
+     if(jzReadCentralDirectory(zip, endRecord, infoFile, entry)) {
+      printf("Couldn't read ZIP file central record.\n");
+      return NULL;
+     }
+  }
+  return entry;
+}
+
+
+static int LoadBinCueInZip(const char *filename, RFILE *fp)
+{
+   long size;
+   char* temp_buffer;
+   unsigned int track_num;
+   unsigned int indexnum, min, sec, frame;
+   unsigned int pregap=0;
+   track_info_struct trk[100];
+   int i;
+   int matched = 0;
+   char *trackfp = NULL;
+   int trackfp_size = 0;
+   int fad = 150;
+   int pos;
+
+   JZEndRecord* endRecord = (JZEndRecord*)malloc(sizeof(JZEndRecord));
+   JZFileHeader header;
+   u8* data;
+   ZipEntry* tracktr;
+   JZFile *zip;
+   ZipEntry *cue;
+
+  const libretro_vfs_implementation_file *stream = filestream_get_vfs_handle(fp);
+  zip = jzfile_from_stdio_file(stream->fp);
+
+  if(jzReadEndRecord(zip, endRecord)) {
+    printf("Couldn't read ZIP file end record.\n");
+    return -1;
+  }
+
+  cue = getZipFileLocalInfo(zip, endRecord, NULL, 1);
+  if (cue == NULL) return -1;
+
+   memset(trk, 0, sizeof(trk));
+   disc.session_num = 1;
+   disc.zip = zip;
+   disc.endRecord = endRecord;
+   disc.session = malloc(sizeof(session_info_struct) * disc.session_num);
+   if (disc.session == NULL)
+   {
+      YabSetError(YAB_ERR_MEMORYALLOC, NULL);
+      return -1;
+   }
+
+   size = cue->size;
+
+   if(size == 0)
+   {
+      YabSetError(YAB_ERR_FILEREAD, filename);
+      return -1;
+   }
+
+   data = cue->zipBuffer;
+   // Allocate buffer with enough space for reading cue
+   if ((temp_buffer = (char *)calloc(size, 1)) == NULL)
+      return -1;
+   // Time to generate TOC
+   int index = 0;
+   for (;;)
+   {
+      // Retrieve a line in cue
+      if (sscanf(&data[index], "%s%n", temp_buffer, &pos) == EOF)
+         break;
+      index+= pos;
+
+      if (strncmp(temp_buffer, "FILE", 4) == 0)
+      {
+         ZipEntry *f;
+         matched = sscanf(&data[index], " \"%[^\"]\"%n", temp_buffer, &pos);
+         index+= pos;
+         f = getZipFileLocalInfo(zip, endRecord, temp_buffer, 1);
+         if (f == NULL) return -1;
+         trackfp_size = f->size;
+         current_file_id++;
+         trackfp = strdup(temp_buffer);
+         tracktr = f;
+         continue;
+      }
+
+
+      // Figure out what it is
+      if (strncmp(temp_buffer, "TRACK", 5) == 0)
+      {
+         // Handle accordingly
+         if (sscanf(&data[index], "%d %[^\r\n]\r\n%n", &track_num, temp_buffer, &pos) == EOF)
+            break;
+         index+= pos;
+         trk[track_num-1].isZip = 1;
+         trk[track_num-1].filename = trackfp;
+         trk[track_num-1].file_size = trackfp_size;
+         trk[track_num-1].tr = tracktr;
+         trk[track_num-1].file_id = current_file_id;
+         if (track_num > 1) {
+           fad += (trk[track_num-2].file_size-trk[track_num-2].file_offset)/trk[track_num-2].sector_size;
+           trk[track_num-2].fad_end = trk[track_num-2].fad_start+(trk[track_num-2].file_size-trk[track_num-2].file_offset)/trk[track_num-2].sector_size;
+         }
+
+         if (strncmp(temp_buffer, "MODE1", 5) == 0 ||
+            strncmp(temp_buffer, "MODE2", 5) == 0)
+         {
+            // Figure out the track sector size
+            trk[track_num-1].sector_size = atoi(temp_buffer + 6);
+            trk[track_num-1].ctl_addr = 0x41;
+         }
+         else if (strncmp(temp_buffer, "AUDIO", 5) == 0)
+         {
+            // Update toc entry
+            trk[track_num-1].sector_size = 2352;
+            trk[track_num-1].ctl_addr = 0x01;
+         }
+      }
+      else if (strncmp(temp_buffer, "INDEX", 5) == 0)
+      {
+         // Handle accordingly
+
+         if (sscanf(&data[index], "%d %d:%d:%d\r\n%n", &indexnum, &min, &sec, &frame,&pos) == EOF)
+            break;
+         index+= pos;
+
+         if (indexnum == 1)
+         {
+            // Update toc entry
+            fad += MSF_TO_FAD(min, sec, frame) + pregap;
+            trk[track_num-1].fad_start = fad;
+            trk[track_num-1].file_offset = MSF_TO_FAD(min, sec, frame) * trk[track_num-1].sector_size;
+         }
+      }
+      else if (strncmp(temp_buffer, "PREGAP", 6) == 0)
+      {
+         if (sscanf(&data[index], "%d:%d:%d\r\n%n", &min, &sec, &frame, &pos) == EOF)
+            break;
+         index+= pos;
+         pregap += MSF_TO_FAD(min, sec, frame);
+      }
+      else if (strncmp(temp_buffer, "POSTGAP", 7) == 0)
+      {
+         if (sscanf(&data[index], "%d:%d:%d\r\n%n", &min, &sec, &frame, &pos) == EOF)
+            break;
+         index+= pos;
+      }
+   }
+
+   trk[track_num].file_offset = 0;
+   trk[track_num].fad_start = 0xFFFFFFFF;
+
+   trk[track_num-1].fad_end = trk[track_num-1].fad_start+(trk[track_num-1].file_size-trk[track_num-1].file_offset)/trk[track_num-1].sector_size;
+
+   //for (int i =0; i<track_num; i++) printf("Track %d [%d - %d]\n", i+1, trk[i].fad_start, trk[i].fad_end);
+
+   disc.session[0].fad_start = 150;
+   disc.session[0].fad_end = trk[track_num-1].fad_end;
+   disc.session[0].track_num = track_num;
+   disc.session[0].track = malloc(sizeof(track_info_struct) * disc.session[0].track_num);
+   if (disc.session[0].track == NULL)
+   {
+      YabSetError(YAB_ERR_MEMORYALLOC, NULL);
+      free(disc.session);
+      disc.session = NULL;
+      return -1;
+   }
+
+   memcpy(disc.session[0].track, trk, track_num * sizeof(track_info_struct));
+
+   // buffer is no longer needed
+   free(temp_buffer);
+
    return 0;
 }
 
@@ -1194,6 +1523,12 @@ static int ISOCDInit(const char * iso) {
       imgtype = IMG_BINCUE;
       ret = LoadBinCue(iso, iso_file);
    }
+   else if (strcasecmp(ext, ".ZIP") == 0)
+   {
+      // It's a BIN/CUE
+      imgtype = IMG_BINCUE;
+      ret = LoadBinCueInZip(iso, iso_file);
+   }
    else if (strcasecmp(ext, ".MDS") == 0 && strncmp(header, "MEDIA ", sizeof(header)) == 0)
    {
       // It's a MDS
@@ -1206,6 +1541,12 @@ static int ISOCDInit(const char * iso) {
 		imgtype = IMG_CCD;
 		ret = LoadCCD(iso, iso_file);
 	}
+  else if (strcasecmp(ext, ".CHD") == 0)
+  {
+    // It's a CCD
+    imgtype = IMG_CHD;
+    ret = LoadCHD(iso, iso_file);
+  }
    else
    {
       // Assume it's an ISO file
@@ -1239,6 +1580,22 @@ static void ISOCDDeInit(void) {
          {
             for (j = 0; j < disc.session[i].track_num; j++)
             {
+               if (disc.session[i].track[j].isZip == 1)
+               {
+                 if(disc.session[i].track[j].tr != NULL)
+                 {
+                   if (disc.session[i].track[j].tr->zipBuffer != NULL)
+                     free(disc.session[i].track[j].tr->zipBuffer);
+                   disc.session[i].track[j].tr->zipBuffer = NULL;
+                   if (disc.session[i].track[j].tr->filename != NULL)
+                     free(disc.session[i].track[j].tr->filename);
+                   disc.session[i].track[j].tr->filename = NULL;
+                   free(disc.session[i].track[j].tr);
+                 }
+                 disc.session[i].track[j].tr = NULL;
+               }
+
+
                if (disc.session[i].track[j].fp)
                {
                   filestream_close(disc.session[i].track[j].fp);
@@ -1255,6 +1612,11 @@ static void ISOCDDeInit(void) {
          }
       }
       free(disc.session);
+      if (disc.zip != NULL)
+        disc.zip->close(disc.zip);
+      disc.zip = NULL;
+      if (disc.endRecord != NULL)
+        disc.endRecord = NULL;
    }
 }
 
@@ -1266,6 +1628,15 @@ static int ISOCDGetStatus(void) {
 	}
 
 	return iso_cd_status;
+}
+
+//#define CDCORE_NORMAL 0
+//#define CDCORE_NODISC 2
+//#define CDCORE_OPEN   3
+
+static void ISOCDSetStatus(int status){
+	iso_cd_status = status;
+	return;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1283,10 +1654,16 @@ track_info_struct *currentTrack = NULL;
 static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
    int i,j;
    size_t num_read = 0;
+   ZipEntry *tr = NULL;
+   u8* zipBuffer;
    int found = 0;
    int offset = 0;
 
    assert(disc.session);
+
+   if (IMG_CHD == imgtype) {
+     return ISOCDReadSectorFADFromCHD(FAD,buffer);
+   }
 
    memset(buffer, 0, 2448);
 
@@ -1301,7 +1678,15 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
             if ((currentTrack != track) || (currentTrack == NULL)){
               currentTrack = track;
               found = 1;
+              if (currentTrack->isZip == 1) {
+                if (currentTrack->tr == NULL) {
+                  //This should never happen, otherwise we might suffer some delay to deflation during game
+                  printf("%s was not defalted!!!\n", currentTrack->filename);
+                  return 0;
+                }
+              }
             }
+            tr = currentTrack->tr;
             break;
          }
          if (found == 1) break;
@@ -1313,15 +1698,29 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
       CDLOG("Warning: Sector not found in track list\n");
       return 0;
    }
+   if ((currentTrack->isZip == 1) && (tr == NULL)) {
+     CDLOG("Warning Zip file: Sector not found in track list\n");
+     return 0;
+   }
    offset = currentTrack->file_offset + (FAD-currentTrack->fad_start) * currentTrack->sector_size;
-
-   filestream_seek(currentTrack->fp, offset, RETRO_VFS_SEEK_POSITION_START);
+   
+   if (currentTrack->isZip != 1) {
+      filestream_seek(currentTrack->fp, offset, RETRO_VFS_SEEK_POSITION_START);
+   } else {
+     zipBuffer = &tr->zipBuffer[offset];
+   }
 
    if (currentTrack->sector_size == 2448)
    {
       if (!currentTrack->interleaved_sub)
       {
-         num_read = (filestream_read(currentTrack->fp, buffer, 2448)/2448);
+         if (currentTrack->isZip != 1) {
+           num_read = filestream_read(currentTrack->fp, buffer, 2448);
+         } else {
+           if ((tr->size - offset) < 2448) return 0;
+           memcpy(buffer, zipBuffer, 2448);
+           zipBuffer+=2448;
+         }
       }
       else
       {
@@ -1337,26 +1736,48 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
          };
          u8 subcode_buffer[96 * 3];
          
-         num_read = (filestream_read(currentTrack->fp, buffer, 2352)/2352);
+         if (currentTrack->isZip != 1) {
+            num_read = filestream_read(currentTrack->fp, buffer, 2352);
 
-         num_read = (filestream_read(currentTrack->fp, subcode_buffer, 96)/96);
-         filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
-         num_read = (filestream_read(currentTrack->fp, subcode_buffer + 96, 96)/96);
-         filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
-         num_read = (filestream_read(currentTrack->fp, subcode_buffer + 192, 96)/96);
+            num_read = filestream_read(currentTrack->fp, subcode_buffer, 96);
+            filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
+            num_read = filestream_read(currentTrack->fp, subcode_buffer + 96, 96);
+            filestream_seek(currentTrack->fp, 2352, RETRO_VFS_SEEK_POSITION_CURRENT);
+            num_read = filestream_read(currentTrack->fp, subcode_buffer + 192, 96);
+         } else {
+            if ((tr->size - offset) < 2352) return 0;
+            memcpy(buffer, zipBuffer, 2352);
+            zipBuffer+=2352;
+            memcpy(&subcode_buffer[0], zipBuffer, 96);
+            memcpy(&subcode_buffer[96], zipBuffer, 96);
+            memcpy(&subcode_buffer[192], zipBuffer, 96);
+            zipBuffer+=96;
+         }
          for (i = 0; i < 96; i++)
             ((u8 *)buffer)[2352+i] = subcode_buffer[deint_offsets[i]];
       }
    }
    else if (currentTrack->sector_size == 2352)
    {
-      // Generate subcodes here
-      num_read = (filestream_read(currentTrack->fp, buffer, 2352)/2352);
+      if (currentTrack->isZip != 1) {
+        // Generate subcodes here
+        num_read = filestream_read(currentTrack->fp, buffer, 2352);
+      } else {
+        if ((tr->size - offset) < 2352) return 0;
+        memcpy(buffer, zipBuffer, 2352);
+        zipBuffer+=2352;
+      }
    }
    else if (currentTrack->sector_size == 2048)
    {
       memcpy(buffer, syncHdr, 12);
-      num_read = (filestream_read(currentTrack->fp, (char *)buffer + 0x10, 2048)/2048);
+      if (currentTrack->isZip != 1) {
+        num_read = filestream_read(currentTrack->fp, (char *)buffer + 0x10, 2048);
+      } else {
+        if ((tr->size - offset) < 2048) return 0;
+        memcpy((char *)buffer + 0x10, zipBuffer, 2048);
+        zipBuffer+=2048;
+      }
    }
 	return 1;
 }
@@ -1369,3 +1790,279 @@ static void ISOCDReadAheadFAD(UNUSED u32 FAD)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+
+// Don't rely on libretro-common's chdr lib, somehow it's breaking this chd stuff
+
+#include "chd.h"
+
+#define CD_MAX_SECTOR_DATA      (2352)
+#define CD_MAX_SUBCODE_DATA     (96)
+#define CD_FRAME_SIZE           (CD_MAX_SECTOR_DATA + CD_MAX_SUBCODE_DATA)
+#define CD_MAX_TRACKS           (99)    /* AFAIK the theoretical limit */
+#define CD_TRACK_PADDING 4
+
+typedef struct ChdInfo_ {
+  chd_file *chd;
+  core_file * image_file;
+  const chd_header * header;
+  char * hunk_buffer;
+  int current_hunk_id;
+} ChdInfo;
+
+ChdInfo * pChdInfo = NULL;
+
+static int LoadCHD(const char *chd_filename, RFILE *iso_file)
+{
+  int trak_number;
+  char track_type[64];
+  char track_subtype[64];
+  int frame = 0;
+  int pregap = 0;
+  char pg_type[64];
+  char pg_sub_type[64];
+  int postgap = 0;
+
+  int meta_outlen = 512 * 1024;
+  u8 * buf = malloc(meta_outlen);
+  u32 resultlen;
+  u32 resulttag;
+  u8 resultflags;
+
+  if (pChdInfo != NULL) {
+    free(pChdInfo);
+  }
+
+  pChdInfo = malloc(sizeof(ChdInfo));
+  memset(pChdInfo, 0, sizeof(ChdInfo));
+
+  track_info_struct trk[100];
+  memset(trk, 0, sizeof(trk));
+
+  int num_tracks = 0;
+
+  chd_error error = chd_open(chd_filename, CHD_OPEN_READ, NULL, &pChdInfo->chd);
+  if (error != CHDERR_NONE) {
+    return -1;
+  }
+
+  pChdInfo->header = chd_get_header(pChdInfo->chd);
+
+  trk[num_tracks].fad_start = frame + pregap + 150;
+  
+  while ( chd_get_metadata(pChdInfo->chd, 0, num_tracks, buf, meta_outlen, &resultlen, &resulttag, &resultflags) == CHDERR_NONE )  {
+
+    LOG("track info %s", buf);
+    switch (resulttag) {
+    case CDROM_TRACK_METADATA_TAG:
+      sscanf(buf, CDROM_TRACK_METADATA_FORMAT, &trak_number, track_type, track_subtype, &frame);
+      pregap = 0;
+      postgap = 0;
+      sprintf(pg_type, "NONE");
+      break;
+    case CDROM_TRACK_METADATA2_TAG:
+      sscanf(buf, CDROM_TRACK_METADATA2_FORMAT, &trak_number, track_type, track_subtype, &frame, &pregap, pg_type, pg_sub_type, &postgap);
+      break;
+    default:
+      return -1;
+    }
+
+    trk[num_tracks].pregap = pregap;
+    trk[num_tracks].postgap = postgap;
+
+    trk[num_tracks].frames = frame;
+    int padded = (frame + CD_TRACK_PADDING - 1) / CD_TRACK_PADDING;
+    trk[num_tracks].extraframes = padded * CD_TRACK_PADDING - frame;
+
+
+    if (!strcmp(track_type, "MODE1"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2048;
+    }
+    else if (!strcmp(track_type, "MODE1/2048"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2048;
+    }
+    else if (!strcmp(track_type, "MODE1_RAW"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2352;
+    }
+    else if (!strcmp(track_type, "MODE1/2352"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2352;
+    }
+    else if (!strcmp(track_type, "MODE2"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2336;
+    }
+    else if (!strcmp(track_type, "MODE2/2336"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2336;
+    }
+    else if (!strcmp(track_type, "MODE2_FORM1"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2048;
+    }
+    else if (!strcmp(track_type, "MODE2/2048"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2048;
+    }
+    else if (!strcmp(track_type, "MODE2_FORM2"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2324;
+    }
+    else if (!strcmp(track_type, "MODE2/2324"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2324;
+    }
+    else if (!strcmp(track_type, "MODE2_FORM_MIX"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2336;
+    }
+    else if (!strcmp(track_type, "MODE2/2336"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2336;
+    }
+    else if (!strcmp(track_type, "MODE2_RAW"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2352;
+    }
+    else if (!strcmp(track_type, "MODE2/2352"))
+    {
+      trk[num_tracks].ctl_addr = 0x41;
+      trk[num_tracks].sector_size = 2352;
+    }
+    else if (!strcmp(track_type, "AUDIO"))
+    {
+      trk[num_tracks].ctl_addr = 0x01;
+      trk[num_tracks].sector_size = 2352;
+    }
+   
+    trk[num_tracks].fad_start = trk[num_tracks].fad_start + pregap;
+    trk[num_tracks].fad_end = trk[num_tracks].fad_start + (frame - 1) - pregap;
+    frame = trk[num_tracks].fad_end+1;
+    num_tracks++;
+    trk[num_tracks].fad_start = frame;
+  }
+  free(buf);
+
+  trk[num_tracks].file_offset = 0;
+  trk[num_tracks].fad_start = 0xFFFFFFFF;
+
+  u32 chdofs = 0;
+  u32 physofs = 0;
+  u32 logofs = 0;
+  int i;
+  for (i = 0; i < num_tracks; i++)
+  {
+    trk[i].logframeofs = logofs;
+    trk[i].physframeofs = physofs;
+    trk[i].chdframeofs = chdofs;
+
+    logofs += trk[i].pregap;
+    logofs += trk[i].postgap;
+    logofs += trk[i].frames;
+
+    physofs += trk[i].frames;
+
+    chdofs += trk[i].frames;
+    chdofs += trk[i].extraframes;
+  }
+  trk[i].logframeofs = logofs;
+  trk[i].physframeofs = physofs;
+  trk[i].chdframeofs = chdofs;
+
+  //trk[num_tracks - 1].fad_end = (pChdInfo->header->logicalbytes - trk[num_tracks - 1].file_offset) / trk[num_tracks - 1].sector_size;
+
+  disc.session_num = 1;
+  disc.session = malloc(sizeof(session_info_struct) * disc.session_num);
+  if (disc.session == NULL)
+  {
+    YabSetError(YAB_ERR_MEMORYALLOC, NULL);
+    return -1;
+  }
+  disc.session[0].fad_start = 150;
+  disc.session[0].fad_end = trk[num_tracks - 1].fad_end;
+  disc.session[0].track_num = num_tracks;
+  disc.session[0].track = malloc(sizeof(track_info_struct) * disc.session[0].track_num);
+  if (disc.session[0].track == NULL)
+  {
+    YabSetError(YAB_ERR_MEMORYALLOC, NULL);
+    free(disc.session);
+    disc.session = NULL;
+    return -1;
+  }
+
+  memcpy(disc.session[0].track, trk, num_tracks * sizeof(track_info_struct));
+
+  pChdInfo->hunk_buffer = malloc(pChdInfo->header->hunkbytes);
+  chd_read(pChdInfo->chd, 0, pChdInfo->hunk_buffer);
+  pChdInfo->current_hunk_id = 0;
+
+  return 0;
+}
+
+
+static int ISOCDReadSectorFADFromCHD(u32 FAD, void *buffer) {
+  int i, j;
+  size_t num_read = 0;
+  track_info_struct *track = NULL;
+  u32 chdlba;
+  u32 physlba;
+  u32 loglba = FAD - 150;
+
+  chdlba = loglba;
+  for (i = 0; i < disc.session_num; i++)
+  {
+    for (j = 0; j < disc.session[i].track_num; j++)
+    {
+      if (loglba < disc.session[i].track[j+1].logframeofs) {
+        if ((loglba > disc.session[i].track[j].pregap)) {
+          loglba -= disc.session[i].track[j].pregap;
+        }
+        physlba = disc.session[i].track[j].physframeofs + (loglba - disc.session[i].track[j].logframeofs);
+        chdlba = physlba - disc.session[i].track[j].physframeofs + disc.session[i].track[j].chdframeofs;
+        track = &disc.session[i].track[j];
+        break;
+      }
+    }
+  }
+
+  if (track == NULL)
+  {
+    CDLOG("Warning: Sector not found in track list");
+    return 0;
+  }
+
+  int hunkid = (chdlba*CD_FRAME_SIZE) / pChdInfo->header->hunkbytes ;
+  int hunk_offset =  (chdlba*CD_FRAME_SIZE) % pChdInfo->header->hunkbytes;
+
+  if (pChdInfo->current_hunk_id != hunkid) {
+    chd_read(pChdInfo->chd, hunkid, pChdInfo->hunk_buffer);
+    pChdInfo->current_hunk_id = hunkid;
+  }
+
+  if (track->ctl_addr == 0x01) {
+    for (int i = 0; i < track->sector_size; i += 2) {
+      ((char*)buffer)[i] = pChdInfo->hunk_buffer[hunk_offset + i + 1];
+      ((char*)buffer)[i+1] = pChdInfo->hunk_buffer[hunk_offset + i];
+    }
+  }
+  else {
+    memcpy(buffer, pChdInfo->hunk_buffer + hunk_offset, track->sector_size);
+  }
+
+  return 1;
+}

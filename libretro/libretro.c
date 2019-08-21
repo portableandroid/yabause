@@ -443,7 +443,8 @@ void retro_get_system_info(struct retro_system_info *info)
 #endif
    info->library_version  = "v0.9.14" GIT_VERSION;
    info->need_fullpath    = true;
-   info->valid_extensions = "bin|cue|iso";
+   info->block_extract    = true;
+   info->valid_extensions = "cue|iso|mds|ccd|chd";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
