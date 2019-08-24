@@ -3,6 +3,8 @@ DYNAREC = 0
 HAVE_GRIFFIN = 0
 HAVE_THREADS = 1
 HAVE_UWP = 0
+HAVE_SYS_PARAM_H = 1
+HAVE_FSEEKO = 0
 
 SPACE :=
 SPACE := $(SPACE) $(SPACE)
@@ -332,6 +334,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dll
 	PSS_STYLE :=2
 	LDFLAGS += -DLL
+	HAVE_SYS_PARAM_H = 0
 
 # Windows
 else
@@ -341,6 +344,7 @@ else
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
 	FLAGS += -DHAVE_WFOPEN
+	HAVE_FSEEKO = 1
 	#DYNAREC = 2
 
 endif
@@ -357,7 +361,15 @@ INCFLAGS := $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
 	-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DHAVE_STDINT_H=1 -DVERSION=\"0.9.14\" -DHAVE_STRCASECMP -DINLINE="inline" \
-	-DHAVE_LROUND -D_7ZIP_ST -DFLAC__HAS_OGG=0 -DHAVE_SYS_PARAM_H
+	-DHAVE_LROUND -D_7ZIP_ST -DFLAC__HAS_OGG=0
+
+ifeq ($(HAVE_SYS_PARAM_H), 1)
+	FLAGS += -DHAVE_SYS_PARAM_H
+endif
+
+ifeq ($(HAVE_FSEEKO), 1)
+	FLAGS += -DHAVE_FSEEKO
+endif
 
 CXXFLAGS += $(FLAGS)
 CFLAGS += $(FLAGS)
