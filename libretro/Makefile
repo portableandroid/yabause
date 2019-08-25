@@ -5,6 +5,9 @@ HAVE_THREADS = 1
 HAVE_UWP = 0
 HAVE_SYS_PARAM_H = 1
 HAVE_FSEEKO = 0
+ARCH_IS_LINUX = 0
+ARCH_IS_MACOSX = 0
+ARCH_IS_WINDOWS = 0
 
 SPACE :=
 SPACE := $(SPACE) $(SPACE)
@@ -261,7 +264,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 		HAVE_UWP = 1
 	endif
 
-	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_WFOPEN -DHAVE_C99_VARIADIC_MACROS -DWIN32 -DHAVE_STRICMP
+	MSVC2017CompileFlags += -DC68K_NO_JUMP_TABLE -DHAVE_C99_VARIADIC_MACROS -DWIN32
 	FLAGS += $(MSVC2017CompileFlags)
 
 	TargetArchMoniker = $(subst $(WinPartition)_,,$(PlatformSuffix))
@@ -335,6 +338,7 @@ else ifneq (,$(findstring windows_msvc2017,$(platform)))
 	PSS_STYLE :=2
 	LDFLAGS += -DLL
 	HAVE_SYS_PARAM_H = 0
+	ARCH_IS_WINDOWS = 1
 
 # Windows
 else
@@ -343,13 +347,21 @@ else
 	CXX ?= g++
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
-	FLAGS += -DHAVE_WFOPEN
 	HAVE_FSEEKO = 1
+	ARCH_IS_WINDOWS = 1
 	#DYNAREC = 2
 
 endif
 
 include Makefile.common
+
+ifeq ($(HAVE_SYS_PARAM_H), 1)
+	FLAGS += -DHAVE_SYS_PARAM_H
+endif
+
+ifeq ($(HAVE_FSEEKO), 1)
+	FLAGS += -DHAVE_FSEEKO
+endif
 
 OBJECTS += $(SOURCES_C:.c=.c.o) $(SOURCES_CXX:.cpp=.cpp.o) $(C68KEXEC_OBJECT)
 
@@ -361,15 +373,7 @@ INCFLAGS := $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
 	-DUSE_SCSP2=1 -DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DHAVE_STDINT_H=1 -DVERSION=\"0.9.14\" -DHAVE_STRCASECMP -DINLINE="inline" \
-	-DHAVE_LROUND -D_7ZIP_ST -DFLAC__HAS_OGG=0
-
-ifeq ($(HAVE_SYS_PARAM_H), 1)
-	FLAGS += -DHAVE_SYS_PARAM_H
-endif
-
-ifeq ($(HAVE_FSEEKO), 1)
-	FLAGS += -DHAVE_FSEEKO
-endif
+	-DHAVE_LROUND -D_7ZIP_ST -DFLAC__HAS_OGG=0 -DFLAC__NO_DLL
 
 CXXFLAGS += $(FLAGS)
 CFLAGS += $(FLAGS)

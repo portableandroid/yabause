@@ -968,7 +968,16 @@ void retro_reset(void)
 void retro_run(void)
 {
    unsigned i;
-   bool updated  = false;
+   bool fastforward = false;
+   bool updated     = false;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &fastforward) && fastforward)
+   {
+      if (frameskip_enable && !fastforward)
+         EnableAutoFrameSkip();
+      else
+         DisableAutoFrameSkip();
+   }
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables();
