@@ -1346,6 +1346,7 @@ void reset_global_gl_state()
 void retro_run(void)
 {
    unsigned i;
+   bool fastforward = false;
    bool updated  = false;
    rendering_started = true;
    one_frame_rendered = false;
@@ -1360,7 +1361,11 @@ void retro_run(void)
       VIDCore->SetSettingValue(VDP_SETTING_RBG_USE_COMPUTESHADER, g_rbg_use_compute_shader);
       if(PERCore && (prev_multitap[0] != multitap[0] || prev_multitap[1] != multitap[1]))
          PERCore->Init();
-      if(g_frame_skip == 1)
+   }
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &fastforward) && fastforward)
+   {
+      if (g_frame_skip == 1 && !fastforward)
          EnableAutoFrameSkip();
       else
          DisableAutoFrameSkip();
