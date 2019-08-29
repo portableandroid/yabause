@@ -64,7 +64,7 @@ ifneq (,$(findstring unix,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread -lGL
+	LDFLAGS += -lpthread
 	ARCH_IS_LINUX = 1
 	# ARM
 	ifneq (,$(findstring armv,$(platform)))
@@ -96,7 +96,7 @@ else ifeq ($(platform), arm64)
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread -lGL
+	LDFLAGS += -lpthread
 	FLAGS += -DAARCH64
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
@@ -143,7 +143,7 @@ else ifneq (,$(findstring rockpro64,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread -lGL
+	LDFLAGS += -lpthread
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
 	FORCE_GLES = 1
@@ -157,7 +157,7 @@ else ifeq ($(platform), odroid-n2)
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread -lGL
+	LDFLAGS += -lpthread
 	FLAGS += -DAARCH64
 	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
@@ -177,7 +177,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread -lGL
+	LDFLAGS += -lpthread
 	ARCH_IS_LINUX = 1
 	BOARD := $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
 
@@ -220,7 +220,7 @@ else ifneq (,$(findstring osx,$(platform)))
 	ifeq ($(arch),ppc)
 		ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 	endif
-	LDFLAGS += -lpthread -framework OpenGL
+	LDFLAGS += -lpthread
 
 else ifneq (,$(findstring ios,$(platform)))
 	# iOS
@@ -288,7 +288,7 @@ else
 	CC ?= gcc
 	CXX ?= g++
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm -lopengl32
+	LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
 	FLAGS += -D_WINDOWS
 	HAVE_FSEEKO = 1
 	ARCH_IS_WINDOWS = 1
@@ -348,6 +348,13 @@ ifeq ($(FORCE_GLES), 1)
 	endif
 else
 	FLAGS += -D_OGL3_
+	ifeq ($(ARCH_IS_WINDOWS), 1)
+		LDFLAGS += -lopengl32
+	else ifeq ($(ARCH_IS_MACOSX), 1)
+		LDFLAGS += -framework OpenGL
+	else
+		LDFLAGS += -lGL
+	endif
 endif
 
 ifeq ($(ARCH_IS_LINUX), 1)
@@ -410,7 +417,7 @@ else
 endif
 
 generate-files-clean:
-	$(M68KMAKE_INC_SOURCES) $(SOURCE_DIR)/musashi/$(M68KMAKE_EXE) $(GEN68K_INC_SOURCES) $(SOURCE_DIR)/c68k/$(GEN68K_EXE)
+	rm -f $(M68KMAKE_INC_SOURCES) $(SOURCE_DIR)/musashi/$(M68KMAKE_EXE) $(GEN68K_INC_SOURCES) $(SOURCE_DIR)/c68k/$(GEN68K_EXE)
 
 $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
