@@ -179,7 +179,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
 	LDFLAGS += -lpthread
 	ARCH_IS_LINUX = 1
-	BOARD := $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
+	BOARD ?= $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
 
 	ifneq (,$(findstring ODROID-XU3,$(BOARD)))
 		HAVE_SSE = 0
