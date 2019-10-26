@@ -1117,7 +1117,7 @@ u8 FASTCALL OnchipReadByte(u32 addr) {
       case 0x010:
          return CurrentSH2->onchip.TIER;
       case 0x011:
-        if (CurrentSH2->onchip.FTCSR & 0x80) { LOG("Read FTCSR = 0x80"); }
+       // if (CurrentSH2->onchip.FTCSR & 0x80) { LOG("Read FTCSR = 0x80"); }
          return CurrentSH2->onchip.FTCSR;
       case 0x012:         
          return CurrentSH2->onchip.FRC.part.H;
@@ -1368,7 +1368,7 @@ void FASTCALL OnchipWriteByte(u32 addr, u8 val) {
            }
          }
 */         
-         LOG("Write FTCSR = %X\n", CurrentSH2->onchip.FTCSR);
+         //LOG("Write FTCSR = %X\n", CurrentSH2->onchip.FTCSR);
          return;
       case 0x012:
          CurrentSH2->onchip.FRC.part.H = val;
@@ -2181,7 +2181,7 @@ void FASTCALL MSH2InputCaptureWriteWord(UNUSED u32 addr, UNUSED u16 data)
    // Copy FRC register to FICR
    MSH2->onchip.FICR = MSH2->onchip.FRC.all;
 
-   LOG("MSH2InputCapture\n");
+   //LOG("MSH2InputCapture\n");
 
    // Time for an Interrupt?
    if (MSH2->onchip.TIER & 0x80)
@@ -2212,7 +2212,7 @@ void FASTCALL SSH2InputCaptureWriteWord(UNUSED u32 addr, UNUSED u16 data)
    // Copy FRC register to FICR
    SSH2->onchip.FICR = SSH2->onchip.FRC.all;
 
-   LOG("SSH2InputCapture\n");
+   //LOG("SSH2InputCapture\n");
 
    // Time for an Interrupt?
    if (SSH2->onchip.TIER & 0x80)

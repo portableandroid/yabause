@@ -41,7 +41,7 @@ extern VideoInterface_struct *VIDCoreList[];
 extern YabEventQueue * rcv_evqueue;
 
 Vdp1 * Vdp1Regs;
-Vdp1External_struct Vdp1External;
+Vdp1External_struct Vdp1External = {0};
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -83,7 +83,7 @@ void FASTCALL Vdp1RamWriteWord(u32 addr, u16 val) {
 void FASTCALL Vdp1RamWriteLong(u32 addr, u32 val) {
    addr &= 0x7FFFF;
    if(addr == 0x00000)
-    LOG("Vdp1RamWriteLong @ %08X", CurrentSH2->regs.PC);
+   LOG("Vdp1RamWriteLong @ %08X", CurrentSH2->regs.PC);
 
    T1WriteLong(Vdp1Ram, addr, val);
 }
@@ -140,7 +140,6 @@ void FASTCALL Vdp1FrameBufferWriteByte(u32 addr, u8 val) {
       VdpLockVram();
       VIDCore->Vdp1WriteFrameBuffer(0, addr, val);
       VdpUnLockVram();
-      return;
    }
 
    T1WriteByte(Vdp1FrameBuffer[Vdp1External.current_frame], addr, val);
@@ -156,7 +155,6 @@ void FASTCALL Vdp1FrameBufferWriteWord(u32 addr, u16 val) {
       VdpLockVram();
       VIDCore->Vdp1WriteFrameBuffer(1, addr, val);
       VdpUnLockVram();
-      return;
    }
 
    T1WriteWord(Vdp1FrameBuffer[Vdp1External.current_frame], addr, val);
@@ -172,7 +170,6 @@ void FASTCALL Vdp1FrameBufferWriteLong(u32 addr, u32 val) {
       VdpLockVram();
       VIDCore->Vdp1WriteFrameBuffer(2, addr, val);
       VdpUnLockVram();
-      return;
    }
 
    T1WriteLong(Vdp1FrameBuffer[Vdp1External.current_frame], addr, val);
@@ -196,6 +193,7 @@ int Vdp1Init(void) {
    if ((Vdp1FrameBuffer[1] = T1MemoryInit(0x40000)) == NULL)
      return -1;
 
+   Vdp1External.status = VDP1_STATUS_IDLE;
    Vdp1External.disptoggle = 1;
 
    Vdp1Regs->TVMR = 0;
@@ -281,6 +279,7 @@ void VideoDeInit(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void Vdp1Reset(void) {
+  memset(Vdp1Regs, 0, sizeof(Vdp1Regs));
    Vdp1Regs->PTMR = 0;
    Vdp1Regs->MODR = 0x1000; // VDP1 Version 1
    Vdp1Regs->TVMR = 0;
@@ -289,6 +288,16 @@ void Vdp1Reset(void) {
    Vdp1Regs->EWRR = 0;
    Vdp1Regs->ENDR = 0;
    VIDCore->Vdp1Reset();
+
+   Vdp1Regs->userclipX1 = 0;
+   Vdp1Regs->userclipY1 = 0;
+   Vdp1Regs->userclipX2 = 1024;
+   Vdp1Regs->userclipY2 = 1024;
+   Vdp1Regs->systemclipX1 = 0;
+   Vdp1Regs->systemclipY1 = 0;
+   Vdp1Regs->systemclipX2 = 1024;
+   Vdp1Regs->systemclipY2 = 1024;
+
 }
 
 int VideoSetSetting( int type, int value )
@@ -415,6 +424,7 @@ void FASTCALL Vdp1WriteWord(u32 addr, u16 val) {
          break;
       case 0xC:
          Vdp1Regs->ENDR = val;
+         Vdp1External.status = VDP1_STATUS_IDLE;
          break;
       default:
          LOG("trying to write a Vdp1 read-only register - %08X\n", addr);
@@ -433,10 +443,17 @@ void FASTCALL Vdp1WriteLong(u32 addr, UNUSED u32 val) {
 void Vdp1DrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    u16 command = T1ReadWord(ram, regs->addr);
-   u32 commandCounter = 0;
+   if (command & 0x8000) {
+     Vdp1External.status = VDP1_STATUS_IDLE;
+     return;
+   }
+   Vdp1External.status = VDP1_STATUS_RUNNING;
+   int command_count = 0;
    u32 returnAddr = 0xffffffff;
 
-   while (!(command & 0x8000) && commandCounter < 2000) { // fix me
+   LOG("Vdp1DrawCommands - %08X\n", regs->addr);
+
+   while (!(command & 0x8000) && command_count < 4096) { // fix me
       regs->COPR = regs->addr >> 3;
       // First, process the command
       if (!(command & 0x4000)) { // if (!skip)
@@ -477,6 +494,7 @@ void Vdp1DrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
             regs->EDSR |= 2;
             regs->LOPR = regs->addr >> 3;
             regs->COPR = regs->addr >> 3;
+            Vdp1External.status = VDP1_STATUS_IDLE;
             return;
          }
       }
@@ -485,6 +503,7 @@ void Vdp1DrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 	  if (regs->EDSR & 0x02){
 		  regs->LOPR = regs->addr >> 3;
 		  regs->COPR = regs->addr >> 3;
+      Vdp1External.status = VDP1_STATUS_IDLE;
 		  return;
 	  }
 
@@ -495,12 +514,23 @@ void Vdp1DrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
          break;
       case 1: // ASSIGN, jump to CMDLINK
          regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+
+         // Badd adress. it causes infinity loop 
+         if (regs->addr == 0) {
+           LOG("VDP1: BAD jump to 0, forced to finish");
+           return;
+         }
+
          break;
       case 2: // CALL, call a subroutine
          if (returnAddr == 0xFFFFFFFF)
             returnAddr = regs->addr + 0x20;
-
          regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         // Badd adress. it causes infinity loop 
+         if (regs->addr == 0) {
+           LOG("VDP1: BAD jump to 0, forced to finish");
+           return;
+         }
          break;
       case 3: // RETURN, return from subroutine
          if (returnAddr != 0xFFFFFFFF) {
@@ -509,13 +539,24 @@ void Vdp1DrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
          }
          else
             regs->addr += 0x20;
+         // Badd adress. it causes infinity loop 
+         if (regs->addr == 0) {
+           LOG("VDP1: BAD jump to 0, forced to finish");
+           return;
+         }
          break;
       }
 
-      command = T1ReadWord(ram, regs->addr);
-      commandCounter++;
+      command = T1ReadWord(ram, regs->addr & 0x7FFFF);
+      command_count++;
+      if (command & 0x8000) {
+        Vdp1External.status = VDP1_STATUS_IDLE;
+      }
    }
-   FRAMELOG("comand count = %d", commandCounter);
+
+   if (Vdp1External.status == VDP1_STATUS_RUNNING) {
+     LOG("comand count = %d", command_count);
+   }
 }
 
 //ensure that registers are set correctly 
@@ -596,15 +637,16 @@ void Vdp1Draw(void)
       return;
    }
 
-   Vdp1Regs->addr = 0;
-
-   // beginning of a frame
-   // BEF <- CEF
-   // CEF <- 0
-   //Vdp1Regs->EDSR >>= 1;
-   /* this should be done after a frame change or a plot trigger */
-   Vdp1Regs->COPR = 0;
-   //printf("COPR = %d at %d\n", Vdp1Regs->COPR, __LINE__);
+   if (Vdp1External.status == VDP1_STATUS_IDLE) {
+     Vdp1Regs->addr = 0;
+     // beginning of a frame
+     // BEF <- CEF
+     // CEF <- 0
+     //Vdp1Regs->EDSR >>= 1;
+     /* this should be done after a frame change or a plot trigger */
+     Vdp1Regs->COPR = 0;
+     //printf("COPR = %d at %d\n", Vdp1Regs->COPR, __LINE__);
+   }
 
    VIDCore->Vdp1DrawStart();
 
@@ -640,6 +682,7 @@ void Vdp1NoDraw(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL Vdp1ReadCommand(vdp1cmd_struct *cmd, u32 addr, u8* ram) {
+  addr &= 0x7FFFF;
    cmd->CMDCTRL = T1ReadWord(ram, addr);
    cmd->CMDLINK = T1ReadWord(ram, addr + 0x2);
    cmd->CMDPMOD = T1ReadWord(ram, addr + 0x4);
@@ -677,8 +720,18 @@ int Vdp1SaveState(FILE *fp)
    ywrite(&check, (void *)Vdp1Ram, 0x80000, 1, fp);
 
 #ifdef IMPROVED_SAVESTATES
+
+   void(*Vdp1ReadFrameBuffer)(u32 type, u32 addr, void * out) = VIDCore->Vdp1ReadFrameBuffer;
+   void(*Vdp1WriteFrameBuffer)(u32 type, u32 addr, u32 val) = VIDCore->Vdp1WriteFrameBuffer;
+
+   VIDCore->Vdp1ReadFrameBuffer = NULL;
+   VIDCore->Vdp1WriteFrameBuffer = NULL;
+
    for (i = 0; i < 0x20000; i++)
       back_framebuffer[i] = Vdp1FrameBufferReadWord(i<<1);
+
+   VIDCore->Vdp1ReadFrameBuffer = Vdp1ReadFrameBuffer;
+   VIDCore->Vdp1WriteFrameBuffer = Vdp1WriteFrameBuffer;
 
    ywrite(&check, (void *)back_framebuffer, 0x40000, 1, fp);
 #endif
@@ -702,10 +755,21 @@ int Vdp1LoadState(FILE *fp, UNUSED int version, int size)
    yread(&check, (void *)Vdp1Ram, 0x80000, 1, fp);
 
 #ifdef IMPROVED_SAVESTATES
+
+   void(*Vdp1ReadFrameBuffer)(u32 type, u32 addr, void * out) = VIDCore->Vdp1ReadFrameBuffer;
+   void(*Vdp1WriteFrameBuffer)(u32 type, u32 addr, u32 val) = VIDCore->Vdp1WriteFrameBuffer;
+
+   VIDCore->Vdp1ReadFrameBuffer = NULL;
+   VIDCore->Vdp1WriteFrameBuffer = NULL;
+
    yread(&check, (void *)back_framebuffer, 0x40000, 1, fp);
 
    for (i = 0; i < 0x20000; i++)
       Vdp1FrameBufferWriteWord(i<<1, back_framebuffer[i]);
+
+   VIDCore->Vdp1ReadFrameBuffer = Vdp1ReadFrameBuffer;
+   VIDCore->Vdp1WriteFrameBuffer = Vdp1WriteFrameBuffer;
+
 #endif
    return size;
 }
