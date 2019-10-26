@@ -22,6 +22,8 @@ else ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
 	USE_AARCH64_DRC = 1
 endif
 
+FLAGS :=
+
 include $(CORE_DIR)/Makefile.common
 
 FLAGS += -DANDROID
