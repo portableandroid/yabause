@@ -17,6 +17,25 @@
     along with Yabause; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
+/*
+        Copyright 2019 devMiyax(smiyaxdev@gmail.com)
+
+This file is part of YabaSanshiro.
+
+        YabaSanshiro is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+YabaSanshiro is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+along with YabaSanshiro; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <jni.h>
 #include <android/native_window.h> // requires ndk r5 or newer
@@ -54,7 +73,8 @@
 #include "libpng/png.h"
 
 JavaVM * yvm;
-static jobject yabause;
+static jobject yabause = NULL;
+
 
 
 static char mpegpath[256] = "\0";
@@ -80,7 +100,8 @@ int g_buf_height = -1;
 int g_major_version=0;
 int g_minor_version=0;
 int g_minorminor_version=0;
-int g_pad_mode = -1;
+int g_pad_mode = 0;
+int g_pad2_mode = 0;
 int g_EnagleFPS = 0;
 int g_CpuType = 2;
 int g_VideoFilter = 0;
@@ -94,7 +115,7 @@ static int g_use_compute_shader = 0;
 static int g_scsp_sync_count = 1;
 static int g_cpu_sync_shift = 1;
 static int g_scsp_sync_time_mode = 1;
-static int g_keep_aspect_rate = 1;
+static int g_aspect_rate_mode = 0;
 
 static int s_status = 0;
 pthread_mutex_t g_mtxGlLock = PTHREAD_MUTEX_INITIALIZER;
@@ -1097,7 +1118,7 @@ int initEgl( ANativeWindow* window )
 	   {
 		  if (VIDCoreList[i]->id == s_vidcoretype)
 		  {
-			 VIDCoreList[i]->Resize(0,0,width,height,1,g_keep_aspect_rate);
+			 VIDCoreList[i]->Resize(0,0,width,height,1,g_aspect_rate_mode);
             glDisable(GL_SCISSOR_TEST);
             glClearColor( 0.0f, 0.0f,0.0f,1.0f);
             glClear( GL_COLOR_BUFFER_BIT );
@@ -1158,7 +1179,7 @@ int switchWindow( ANativeWindow* window ){
 	  if (VIDCoreList[i]->id == s_vidcoretype)
 	  {
 		YUI_LOG("Resize %d,%s %d,%d",s_vidcoretype,VIDCoreList[i]->Name,width,height);
-		 VIDCoreList[i]->Resize(0,0,width,height,1,g_keep_aspect_rate);
+		 VIDCoreList[i]->Resize(0,0,width,height,1,g_aspect_rate_mode);
          glDisable(GL_SCISSOR_TEST);
          glClearColor( 0.0f,0.0f,0.0f,1.0f);
          glClear( GL_COLOR_BUFFER_BIT );
@@ -1226,11 +1247,11 @@ Java_org_uoyabause_android_YabauseRunnable_press( JNIEnv* env, jobject obj, jint
 
 void update_pad_mode(){
     void * padbits;
+
+    PerPortReset();
+
     if( g_pad_mode == 0 ) {
-
-        PerPortReset();
         padbits = PerPadAdd(&PORTDATA1);
-
         PerSetKey(MAKE_PAD(0,PERPAD_UP), PERPAD_UP, padbits);
         PerSetKey(MAKE_PAD(0,PERPAD_RIGHT), PERPAD_RIGHT, padbits);
         PerSetKey(MAKE_PAD(0,PERPAD_DOWN), PERPAD_DOWN, padbits);
@@ -1244,28 +1265,9 @@ void update_pad_mode(){
         PerSetKey(MAKE_PAD(0,PERPAD_Z), PERPAD_Z, padbits);
         PerSetKey(MAKE_PAD(0,PERPAD_RIGHT_TRIGGER),PERPAD_RIGHT_TRIGGER,padbits);
         PerSetKey(MAKE_PAD(0,PERPAD_LEFT_TRIGGER),PERPAD_LEFT_TRIGGER,padbits);
-        
-        if( s_player2Enable != -1 ) {
-            padbits = PerPadAdd(&PORTDATA2);
-        
-            PerSetKey(MAKE_PAD(1,PERPAD_UP), PERPAD_UP, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_RIGHT), PERPAD_RIGHT, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_DOWN), PERPAD_DOWN, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_LEFT), PERPAD_LEFT, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_START), PERPAD_START, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_A), PERPAD_A, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_B), PERPAD_B, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_C), PERPAD_C, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_X), PERPAD_X, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_Y), PERPAD_Y, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_Z), PERPAD_Z, padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_RIGHT_TRIGGER),PERPAD_RIGHT_TRIGGER,padbits);
-            PerSetKey(MAKE_PAD(1,PERPAD_LEFT_TRIGGER),PERPAD_LEFT_TRIGGER,padbits);
-        }
 
-    }else if( g_pad_mode == 1 ){
+    } else if( g_pad_mode == 1 ){
 
-        PerPortReset();
         padbits = Per3DPadAdd(&PORTDATA1);
 
         PerSetKey(MAKE_PAD(0,PERANALOG_AXIS1), PERANALOG_AXIS1, padbits);
@@ -1286,15 +1288,30 @@ void update_pad_mode(){
         PerSetKey(MAKE_PAD(0,PERPAD_Z), PERPAD_Z, padbits);
         PerSetKey(MAKE_PAD(0,PERPAD_RIGHT_TRIGGER),PERPAD_RIGHT_TRIGGER,padbits);
         PerSetKey(MAKE_PAD(0,PERPAD_LEFT_TRIGGER),PERPAD_LEFT_TRIGGER,padbits);
-        
-        if( s_player2Enable != -1 ) {
+    }
+
+    if( s_player2Enable != -1 ) {
+        if( g_pad2_mode == 0 ) {
+            padbits = PerPadAdd(&PORTDATA2);
+            PerSetKey(MAKE_PAD(1,PERPAD_UP), PERPAD_UP, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_RIGHT), PERPAD_RIGHT, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_DOWN), PERPAD_DOWN, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_LEFT), PERPAD_LEFT, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_START), PERPAD_START, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_A), PERPAD_A, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_B), PERPAD_B, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_C), PERPAD_C, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_X), PERPAD_X, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_Y), PERPAD_Y, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_Z), PERPAD_Z, padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_RIGHT_TRIGGER),PERPAD_RIGHT_TRIGGER,padbits);
+            PerSetKey(MAKE_PAD(1,PERPAD_LEFT_TRIGGER),PERPAD_LEFT_TRIGGER,padbits);
+        }else{
             padbits = Per3DPadAdd(&PORTDATA2);
-        
             PerSetKey(MAKE_PAD(1,PERANALOG_AXIS1), PERANALOG_AXIS1, padbits);
             PerSetKey(MAKE_PAD(1,PERANALOG_AXIS2), PERANALOG_AXIS2, padbits);
             PerSetKey(MAKE_PAD(1,PERANALOG_AXIS3), PERANALOG_AXIS3, padbits);
             PerSetKey(MAKE_PAD(1,PERANALOG_AXIS4), PERANALOG_AXIS4, padbits);
-
             PerSetKey(MAKE_PAD(1,PERPAD_UP), PERPAD_UP, padbits);
             PerSetKey(MAKE_PAD(1,PERPAD_RIGHT), PERPAD_RIGHT, padbits);
             PerSetKey(MAKE_PAD(1,PERPAD_DOWN), PERPAD_DOWN, padbits);
@@ -1310,13 +1327,20 @@ void update_pad_mode(){
             PerSetKey(MAKE_PAD(1,PERPAD_LEFT_TRIGGER),PERPAD_LEFT_TRIGGER,padbits);
         }
     }
-
 }
 
 void
 Java_org_uoyabause_android_YabauseRunnable_switch_1padmode( JNIEnv* env, jobject obj, jint mode )
 {
     g_pad_mode = mode;
+    if(yabause) s_player2Enable = GetPlayer2Device();
+    update_pad_mode();
+}
+
+void Java_org_uoyabause_android_YabauseRunnable_switch_1padmode2( JNIEnv* env, jobject obj, jint mode )
+{
+    g_pad2_mode = mode;
+    if(yabause) s_player2Enable = GetPlayer2Device();
     update_pad_mode();
 }
 
@@ -1354,12 +1378,14 @@ void
 Java_org_uoyabause_android_YabauseRunnable_enableRotateScreen( JNIEnv* env, jobject obj, jint enable )
 {
     g_rotate_screen = enable;
+    VideoSetSetting(VDP_SETTING_ROTATE_SCREEN,g_rotate_screen);
 }
 
 void
 Java_org_uoyabause_android_YabauseRunnable_enableComputeShader( JNIEnv* env, jobject obj, jint enable )
 {
     g_use_compute_shader = enable;
+    VideoSetSetting(VDP_SETTING_RBG_USE_COMPUTESHADER,g_use_compute_shader);
 }
 
 
@@ -1385,12 +1411,14 @@ void
 Java_org_uoyabause_android_YabauseRunnable_setResolutionMode( JNIEnv* env, jobject obj, jint resolution_mode )
 {
     g_resolution_mode = resolution_mode;
+    VideoSetSetting(VDP_SETTING_RESOLUTION_MODE, g_resolution_mode);
 }
 
 void
 Java_org_uoyabause_android_YabauseRunnable_setRbgResolutionMode( JNIEnv* env, jobject obj, jint resolution_mode )
 {
     g_rbg_resolution_mode = resolution_mode;
+    VideoSetSetting(VDP_SETTING_RBG_RESOLUTION_MODE, g_rbg_resolution_mode);
 }
 
 
@@ -1436,9 +1464,9 @@ Java_org_uoyabause_android_YabauseRunnable_setPolygonGenerationMode(JNIEnv* env,
 }
 
 void
-Java_org_uoyabause_android_YabauseRunnable_setKeepAspect(JNIEnv* env, jobject obj, jint ka )
+Java_org_uoyabause_android_YabauseRunnable_setAspectRateMode(JNIEnv* env, jobject obj, jint ka )
 {
-	g_keep_aspect_rate = ka;
+	g_aspect_rate_mode = ka;
 }
 
 void
@@ -1656,12 +1684,12 @@ void renderLoop()
             case MSG_PAUSE:
                 YUI_LOG("MSG_PAUSE");
                 YabFlushBackups();
-                ScspMuteAudio(SCSP_MUTE_SYSTEM);
+                //ScspMuteAudio(SCSP_MUTE_SYSTEM);
                 pause = 1;
                 break;
             case MSG_RESUME:
                 YUI_LOG("MSG_RESUME");
-                ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
+                //ScspUnMuteAudio(SCSP_MUTE_SYSTEM);
                 pause = 0;
                 break;
             case MSG_OPEN_TRAY:

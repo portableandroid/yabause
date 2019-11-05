@@ -1,21 +1,19 @@
-/*  Copyright 2005-2006 Guillaume Duhamel
-    Copyright 2005-2006 Theo Berkau
-    Copyright 2011-2015 Shinya Miyamoto(devmiyax)
+/*  Copyright 2019 devMiyax(smiyaxdev@gmail.com)
 
-    This file is part of Yabause.
+    This file is part of YabaSanshiro.
 
-    Yabause is free software; you can redistribute it and/or modify
+    YabaSanshiro is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
-    Yabause is distributed in the hope that it will be useful,
+    YabaSanshiro is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
+    along with YabaSanshiro; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
  
@@ -1137,7 +1135,10 @@ int YglGenFrameBuffer() {
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _Ygl->rboid_stencil);
   status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
   if (status != GL_FRAMEBUFFER_COMPLETE) {
-    YGLDEBUG("YglGLInit:Framebuffer status = %08X\n", status);
+    YGLDEBUG("YglGLInit:Framebuffer status = %08X w=%d h=%d fbo=%d, tex=%d, depth=%d, stencil=%d\n", 
+    status,_Ygl->width, _Ygl->height,
+    _Ygl->vdp1fbo,_Ygl->vdp1FrameBuff[0],
+    _Ygl->rboid_depth,_Ygl->rboid_stencil);
     abort();
   }
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1571,6 +1572,7 @@ static int YglQuadGrowShading_tesselation_in(YglSprite * input, YglTexture * out
 void YglCacheQuadGrowShading(YglSprite * input, float * colors, YglCache * cache){
 
   if (_Ygl->polygonmode == GPU_TESSERATION) {
+    YglTesserationProgramInit();
     YglQuadGrowShading_tesselation_in(input, NULL, colors, cache, 0);
   }
   else if (_Ygl->polygonmode == CPU_TESSERATION) {
@@ -1590,6 +1592,7 @@ void YglCacheQuadGrowShading(YglSprite * input, float * colors, YglCache * cache
 int YglQuadGrowShading(YglSprite * input, YglTexture * output, float * colors, YglCache * c){
 
   if (_Ygl->polygonmode == GPU_TESSERATION) {
+    YglTesserationProgramInit();
     return YglQuadGrowShading_tesselation_in(input, output, colors, c, 1);
   }
   else if (_Ygl->polygonmode == CPU_TESSERATION) {
@@ -3000,9 +3003,7 @@ void YglRenderVDP1(void) {
       }
 
       if ( level->prg[j].prgid >= PG_VFP1_GOURAUDSAHDING_TESS ) {
-#if !defined(__XU4__)
         if (glPatchParameteri) glPatchParameteri(GL_PATCH_VERTICES, 4);
-#endif
         glDrawArrays(GL_PATCHES, 0, level->prg[j].currentQuad / 2);
       }else{
         glDrawArrays(GL_TRIANGLES, 0, level->prg[j].currentQuad / 2);
@@ -3652,6 +3653,7 @@ void YglRender(void) {
 
    // This is workaround for Azel disc 2
    // Only top and second prioriy pixel is calculated
+#if 0 // There are many regressions...
    int lowpri = -1;
    int hitcnt = 0;
    if ( (fixVdp2Regs->CCCTL & 0x500) == 0x100 ) {
@@ -3671,7 +3673,7 @@ void YglRender(void) {
        lowpri = -1;
      }
    }
-
+#endif
 
 
   // 12.14 CCRTMD                               // TODO: MSB perpxel transparent is not uported yet
@@ -3739,6 +3741,10 @@ void YglRender(void) {
             }
             else if ( (level->prg[j].blendmode&0x03) == VDP2_CC_ADD){
 
+#if 1 // There are many regressions...
+              glEnable(GL_BLEND);
+              glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+#else
               // This is workaround for Azel disc 2
               if ((fixVdp2Regs->CCCTL & 0x500) == 0x100) {
                 if (lowpri == i) {
@@ -3759,6 +3765,7 @@ void YglRender(void) {
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_ONE, GL_SRC_ALPHA);
               }
+#endif
             }
           }
 
@@ -4470,6 +4477,40 @@ void YglSetBackColor(int size) {
   return;
 }
 
+void YglRebuildGramebuffer(){
+  switch (_Ygl->resolution_mode) {
+  case RES_NATIVE:
+    _Ygl->width = GlWidth;
+    _Ygl->height = GlHeight;
+    rebuild_frame_buffer = 1;
+    break;
+  case RES_4x:
+    _Ygl->width = _Ygl->rwidth * 4;
+    _Ygl->height = _Ygl->rheight * 4;
+    rebuild_frame_buffer = 1;
+    break;
+  case RES_2x:
+    _Ygl->width = _Ygl->rwidth * 2;
+    _Ygl->height = _Ygl->rheight * 2;
+    rebuild_frame_buffer = 1;
+    break;
+  case RES_ORIGINAL:
+    _Ygl->width = _Ygl->rwidth;
+    _Ygl->height = _Ygl->rheight;
+    rebuild_frame_buffer = 1;
+    break;
+  case RES_720P:
+    _Ygl->width = 1280;
+    _Ygl->height = 720;
+    rebuild_frame_buffer = 1;
+    break;
+  case RES_1080P:
+    _Ygl->width = 1920;
+    _Ygl->height = 1080;
+    rebuild_frame_buffer = 1;
+    break;
+  }
+}
 //////////////////////////////////////////////////////////////////////////////
 
 void YglChangeResolution(int w, int h) {
@@ -4562,7 +4603,7 @@ void VIDOGLSync(){
   //  glDeleteSync(_Ygl->frame_sync);
   //  _Ygl->frame_sync = 0;
   //}
-  //glFlush();
+  //glFinish();
   //_Ygl->frame_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
