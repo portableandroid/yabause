@@ -17,6 +17,26 @@
     along with Yabause; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
+/*
+        Copyright 2019 devMiyax(smiyaxdev@gmail.com)
+
+This file is part of YabaSanshiro.
+
+        YabaSanshiro is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+YabaSanshiro is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+along with YabaSanshiro; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 #ifndef  _YGL_H_
 #define  _YGL_H_
 #ifdef __cplusplus
@@ -494,6 +514,13 @@ typedef enum
   RBG_RES_FIT_TO_EMULATION
 } RBG_RESOLUTION_MODE;
 
+typedef enum
+{
+  ORIGINAL = 0,
+  _4_3,
+  _16_9,
+  FULL,
+} ASPECT_RATE_MODE;
 
 typedef enum {
 	NBG0 = 0,
@@ -620,8 +647,9 @@ typedef struct {
 
    int screen_width;
    int screen_height;
-   int keep_aspect;
    int isFullScreen;
+
+   ASPECT_RATE_MODE aspect_rate_mode;
 
 }  Ygl;
 
