@@ -36,7 +36,10 @@
 #ifdef HAVE_PLAY_JIT
 #include "sh2_jit.h"
 #endif
-
+#ifdef PORTANDROID
+#define _cb_type_lock_
+#include "emu_retro.h"
+#endif
 yabauseinit_struct yinit;
 
 static char slash = path_default_slash_c();
@@ -935,7 +938,15 @@ bool retro_load_game(const struct retro_game_info *info)
    check_variables();
 
    snprintf(full_path, sizeof(full_path), "%s", info->path);
+#ifdef PORTANDROID
+   if(cb_settings.bios_path){
+       snprintf(bios_path, sizeof(bios_path), "%s",cb_settings.bios_path);
+   }else{
+       snprintf(bios_path, sizeof(bios_path), "%s%csaturn_bios.bin", g_system_dir, slash);
+   }
+#else
    snprintf(bios_path, sizeof(bios_path), "%s%csaturn_bios.bin", g_system_dir, slash);
+#endif
    if (does_file_exist(bios_path) != 1)
    {
       log_cb(RETRO_LOG_WARN, "%s NOT FOUND\n", bios_path);
