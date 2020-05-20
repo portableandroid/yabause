@@ -27,6 +27,9 @@
 #include "vdp2.h"  // for DisplayMessage() prototype
 #include "yabause.h"
 #include "error.h"
+#ifdef PORTANDROID
+#define STRINGIZE(x)					#x
+#endif
 
 int RecordingFileOpened;
 int PlaybackFileOpened;
@@ -64,7 +67,11 @@ static void WriteHeader(FILE* fp) {
 	fseek(fp, 0, SEEK_SET);
 
 	fwrite("YMV", sizeof("YMV"), 1, fp);
+#ifdef PORTANDROID
+	fwrite(STRINGIZE(VERSION), sizeof(STRINGIZE(VERSION)), 1, fp);
+#else
 	fwrite(VERSION, sizeof(VERSION), 1, fp);
+#endif
 	fwrite(cdip->cdinfo, sizeof(cdip->cdinfo), 1, fp);
 	fwrite(cdip->itemnum, sizeof(cdip->itemnum), 1, fp);
 	fwrite(cdip->version, sizeof(cdip->version), 1, fp);
