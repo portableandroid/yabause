@@ -8,12 +8,16 @@ DYNAREC = 0
 HAVE_GRIFFIN = 0
 HAVE_THREADS = 1
 HAVE_MUSASHI = 1
+USE_RGB_565 = 1
 HAVE_UWP = 0
 HAVE_SYS_PARAM_H = 1
 HAVE_FSEEKO = 0
 ARCH_IS_LINUX = 0
 ARCH_IS_MACOSX = 0
 ARCH_IS_WINDOWS = 0
+# compression libraries
+ENABLE_ZLIB = 1
+ENABLE_CHD = 1
 # The following is broken upstream ?
 USE_PLAY_JIT = 0
 USE_SCSP2 = 0
@@ -48,6 +52,9 @@ else ifneq ($(findstring Darwin,$(shell uname -a)),)
 	arch = intel
 	ifeq ($(shell uname -p),powerpc)
 		arch = ppc
+	endif
+	ifeq ($(shell uname -p),arm)
+		arch = arm64
 	endif
 else ifneq ($(findstring MINGW,$(shell uname -a)),)
 	system_platform = win
@@ -105,6 +112,11 @@ ifneq (,$(findstring unix,$(platform)))
 		FLAGS += -DARM
 	endif
 
+	# riscv64
+	ifneq ($(findstring riscv64,$(shell uname -a)),)
+		HAVE_SSE = 0
+	endif
+
 else ifneq (,$(findstring linux-portable,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC -nostdlib
@@ -118,9 +130,10 @@ else ifneq (,$(findstring linux-portable,$(platform)))
 else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC
+	MACSOSVER = $(shell sw_vers -productVersion | cut -d. -f 1)
 	OSXVER = $(shell sw_vers -productVersion | cut -d. -f 2)
-	OSX_GT_MOJAVE = $(shell (( $(OSXVER) >= 14)) && echo "YES")
-ifneq ($(OSX_GT_MOJAVE),YES)
+	OSX_LT_MOJAVE = $(shell (( $(MACSOSVER) < 11)) && (( $(OSXVER) < 14)) && echo "YES")
+ifeq ($(OSX_LT_MOJAVE),YES)
 	#this breaks compiling on Mac OS Mojave
 	fpic += -mmacosx-version-min=10.1
 endif
@@ -129,26 +142,53 @@ ifeq ($(arch),ppc)
 	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
 	HAVE_SSE = 0
 endif
+ifeq ($(shell uname -p),arm)
+	HAVE_SSE = 0
+endif
 	#DYNAREC = 2
 	FLAGS += -pthread
 	LDFLAGS += -pthread
 	ARCH_IS_MACOSX = 1
 
-LIBRARY_NAME = $(TARGET_NAME)_libretro_ios
+   ifeq ($(CROSS_COMPILE),1)
+ifneq (,$(findstring arm64,$(LIBRETRO_APPLE_PLATFORM)))
+	HAVE_SSE = 0
+endif
+		TARGET_RULE   = -target $(LIBRETRO_APPLE_PLATFORM) -isysroot $(LIBRETRO_APPLE_ISYSROOT)
+		CFLAGS   += $(TARGET_RULE)
+		CPPFLAGS += $(TARGET_RULE)
+		CXXFLAGS += $(TARGET_RULE)
+		LDFLAGS  += $(TARGET_RULE)
+   endif
+
+	CFLAGS  += $(ARCHFLAGS)
+	CXXFLAGS  += $(ARCHFLAGS)
+	LDFLAGS += $(ARCHFLAGS)
 
 else ifneq (,$(findstring ios,$(platform)))
 	# iOS
 	TARGET := $(TARGET_NAME)_libretro_ios.dylib
 	fpic := -fPIC
 	SHARED := -dynamiclib
+        MINVERSION :=
+ifeq ($(IOSSDK),)
+   IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
+endif
 	CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
 	ifeq ($(platform), ios-arm64)
-	  CC = clang -arch arm64 -isysroot $(IOSSDK)
-	  CXX = clang++ -arch arm64 -isysroot $(IOSSDK)
+	  CC = cc -arch arm64 -isysroot $(IOSSDK)
+	  CXX = c++ -arch arm64 -isysroot $(IOSSDK)
         else
-	  CC = clang -arch armv7 -isysroot $(IOSSDK)
-	  CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
+	  CC = cc -arch armv7 -isysroot $(IOSSDK)
+	  CXX = c++ -arch armv7 -isysroot $(IOSSDK)
 	endif
+ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
+        MINVERSION = -miphoneos-version-min=8.0
+else
+        MINVERSION = -miphoneos-version-min=5.0
+endif
+        CFLAGS += $(MINVERSION)
+        CXXFLAGS += $(MINVERSION)
 
 	HAVE_SSE = 0
 
@@ -157,8 +197,14 @@ else ifeq ($(platform), tvos-arm64)
 	TARGET := $(TARGET_NAME)_libretro_tvos.dylib
 	fpic := -fPIC
 	SHARED := -dynamiclib
+ifeq ($(IOSSDK),)
+   IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
+endif
 	CC_AS =  perl ./libretro/gas-preprocessor.pl $(CC)
 	HAVE_SSE = 0
+
+        CC = cc -arch arm64 -isysroot $(IOSSDK)
+        CXX = c++ -arch arm64 -isysroot $(IOSSDK)
 
 # Classic Platforms ####################
 # Platform affix = classic_<ISA>_<µARCH>
@@ -473,9 +519,7 @@ FLAGS += $(fpic)
 INCFLAGS := $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
 WARNINGS :=
-FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
-	-DNO_CLI -DHAVE_SYS_TIME_H -DHAVE_GETTIMEOFDAY -DHAVE_STDINT_H=1 -DVERSION=\"0.9.15\" \
-	-DHAVE_LROUND -D_7ZIP_ST -DFLAC__HAS_OGG=0 -DFLAC__NO_DLL
+FLAGS += $(INCFLAGS) $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS)
 
 CXXFLAGS += $(FLAGS)
 CFLAGS += $(FLAGS)
